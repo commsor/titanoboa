@@ -1,0 +1,1 @@
+{:name "test-job", :revision 1, :type nil, :properties {}, :first-step "step", :steps [{:id "step", :type :custom, :supertype :tasklet, :next {}, :workload-fn nil, :properties {}, :name "test-step"}]}

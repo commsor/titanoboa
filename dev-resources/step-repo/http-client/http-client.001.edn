@@ -1,0 +1,11 @@
+{:type :http-client
+ :supertype :tasklet
+ :workload-fn #titanoboa.exp/Expression{:value "titanoboa.tasklet.httpclient/request"}
+ :properties {:url "https://jsonplaceholder.typicode.com/posts/1"
+              :request-method :get
+              :as :json
+              :proxy-host "127.0.0.1"
+              :proxy-port 8118
+              :response-property-name :rest-response
+              :body-only? false
+              :connection-pool {:timeout 5 :threads 4 :insecure? false :default-per-route 10}}}

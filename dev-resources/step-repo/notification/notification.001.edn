@@ -1,0 +1,4 @@
+{:type :notification,
+ :supertype :tasklet,
+ :workload-fn #titanoboa.exp.Expression{:value "(fn [job]) (comment \"TODO implement this\"))"},
+ :properties {}}

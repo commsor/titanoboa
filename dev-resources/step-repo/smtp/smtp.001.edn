@@ -1,0 +1,25 @@
+{:type :smtp
+ :supertype :tasklet
+ :workload-fn #titanoboa.exp/Expression{:value "titanoboa.tasklet.smtp/send"}
+ :properties {:connection {:host "localhost"
+                           :port 25
+                           :user ""
+                           :pass ""
+                           :ssl false
+                           :tls false}
+              :email {:from "miro@example.bla"
+                      :to "joe@example.com"
+                      :cc ["joe@example.com", "jim@example.com", "jeff@example.com"]
+                      :bcc "archive@example.com"
+                      :subject "Cat!"
+                      :date #titanoboa.exp/Expression{:value "(java.util.Date.)"}
+                      :message-id ""
+                      :user-agent ""
+                      :body [{:type "text/plain"
+                              :content "Hey folks,\n\nCheck out these pictures of my cat!"}
+                             {:type :inline
+                              :content #titanoboa.exp/Expression{:value "(File. \"/tmp/lester-flying-photoshop\")"}
+                              :content-type "image/jpeg"
+                              :file-name "lester-flying.jpeg"}
+                             {:type :attachment
+                              :content #titanoboa.exp/Expression{:value "(File. \"/tmp/lester-upside-down.jpeg\")"}}]}}}

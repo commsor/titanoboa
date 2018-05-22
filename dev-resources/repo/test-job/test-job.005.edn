@@ -1,0 +1,6 @@
+{:first-step "step", :name "test-job", :revision 5, :type nil, :properties {:create-folder? true}, :steps [{:id "step", :type :custom, :supertype :tasklet, :next {"*" "splitter"}, :workload-fn #titanoboa.exp.Expression{:value "titanoboa.processor/preprocess"}, :properties {}, :name "step"}
+{:id "splitter", :name "splitter", :type :map, :supertype :map,
+:workload-fn #titanoboa.exp.Expression{:value "(fn [p] \n       [{:properties {:name \"Miro\"} } \n         {:properties  {:name \"janka\"}} \n         {:properties  {:name \"Kris\"}}])"},
+:next {},
+:properties {:jobdef-name "pokus",
+:sys-key :core, :run-standalone? true, :workers-count 1}}]}

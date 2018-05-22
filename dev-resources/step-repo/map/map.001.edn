@@ -1,0 +1,9 @@
+{:type :map,
+ :supertype :map,
+ :workload-fn #titanoboa.exp.Expression{:value "(fn [job](comment \"TODO implement this, return sequence of job properties that will be used ot start the new jobs.\"))"},
+ :properties {:jobdef-name "def id of job to execute"
+                        :sys-key :core
+                        :standalone-system? false
+                        :distributed-system? false
+                        :workers-count 1
+                        :aggregator-q-name "optional; delete to enable automatic name generation"}}

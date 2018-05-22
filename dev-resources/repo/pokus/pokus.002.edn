@@ -1,0 +1,1 @@
+{:name "pokus", :revision 2, :type nil, :properties {:name "Miroslavek"}, :first-step "step", :steps [{:id "step", :name "step", :type :custom, :supertype :tasklet, :next {}, :workload-fn #titanoboa.exp.Expression{:value " (fn [j] (println (first (:properties j))))"}, :properties {}}]}

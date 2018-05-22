@@ -1,0 +1,6 @@
+{:type :reduce,
+ :supertype :reduce,
+ :workload-fn #titanoboa.exp.Expression{:value "(fn [value item] (comment \"TODO implement this; first value will be nil; perform reduction of item to the overall value and return value.\"))"},
+ :properties {:map-step-id "corresponding map step id"
+                        :commit-interval 10
+                        :terminate-standalone? true}}
