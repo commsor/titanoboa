@@ -14,8 +14,8 @@ Download titanoboa GUI titanoboa.io. The GUI is distributed in a form of a zip f
 
     curl --remote-name http://www.titanoboa.io/titanoboa.jar
     curl --remote-name http://www.titanoboa.io/titanoboa-gui.zip
-     
-__Note__: _If you are intending on runnint titanoboa server on java JDK instead of JRE, download a distribution for JDK instead:_
+
+__Note__: _If you are intending on running titanoboa server on java JDK instead of JRE, download a distribution for JDK instead:_
 
     curl --remote-name http://www.titanoboa.io/titanoboa4jdk.jar
 
