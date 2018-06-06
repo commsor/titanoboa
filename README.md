@@ -1,10 +1,10 @@
 
-![alt Logo](https://s3.eu-central-1.amazonaws.com/www.titanoboa.io/tb-logo-dark-nosub.svg)
-
 ## Synopsis
 Titanoboa is fully distributed, highly scalable and fault tolerant workflow orchestration platform.
 It employs hybrid iPaaS and FaaS concepts and runs on the JVM.
 You can run it on-premises or in a cloud.
+
+![alt Logo](https://s3.eu-central-1.amazonaws.com/www.titanoboa.io/tb-logo-dark-nosubtitle.svg)
 
 See also http://www.titanoboa.io
 
