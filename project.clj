@@ -4,7 +4,7 @@
   :license {:name "GNU Affero General Public License"
             :url "https://www.gnu.org/licenses/agpl-3.0.en.html"}
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [pl.joegreen/lambda-from-string "1.6"]
+                 [pl.joegreen/lambda-from-string "1.6"] ;;Note: if running on JDK use this instead:  [pl.joegreen/lambda-from-string "1.6" :exclusions [org.eclipse.jdt.core.compiler/ecj]]
                  [com.stuartsierra/component "0.3.1"]
                  [org.clojure/core.async "0.2.374"]
                  [org.clojure/tools.logging "0.3.1"]
@@ -13,7 +13,6 @@
                                                     com.sun.jdmk/jmxtools
                                                     com.sun.jmx/jmxri]]
                  [org.slf4j/slf4j-log4j12 "1.7.5"]
-                 [org.clojars.kjw/slf4j-simple "1.5.5"]
                  [org.clojure/tools.namespace "0.2.11"]
                  [org.clojure/java.classpath "0.2.3"]
                  [org.tcrawley/dynapath "0.2.4"];;"0.2.4"
