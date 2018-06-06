@@ -35,7 +35,7 @@ which means the server started successfully. by default the server and the GUI w
 Congratulations! You have just started your titanoboa server!
 
 ### Prerequisites
-Java 8 JRE/JDK. Most of the functionality work on Java 7 and higher, however Java Lambda support has been tested only on Java 8.
+Java 8 JRE or JDK. Almost all of the functionality works on Java 7 and higher, however Java Lambda support has been tested only on Java 8.
 
 ### Ruinning server without GUI
 
@@ -50,7 +50,7 @@ Titanoboa uses leiningen for dependency management, so if you don't have it down
 
 Clone this repository
 
-    git clone https://github.com/mikub/titanoboa-lite
+    git clone https://github.com/mikub/titanoboa
     
 generate uberjar:
 
