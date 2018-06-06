@@ -75,14 +75,14 @@
          :cookie-name "id"
          :cookie-attrs {:max-age (* 60 60 24)}})))
 
-(defn unsign-token [token]
-  (jwt/unsign token (ks/public-key (io/resource "auth_pubkey.pem")) {:alg :rs256}))
+(defn unsign-token [token pubkey]
+  (jwt/unsign token (ks/public-key (io/resource pubkey)) {:alg :rs256}))
 
 
-(defn wrap-auth-token [handler]
+(defn wrap-auth-token [handler pubkey]
   (fn [req]
     (let [user (:user (when-let [token (-> req :session :token)]
-                        (unsign-token token)))]
+                        (unsign-token token pubkey)))]
       (handler (assoc req :auth-user user)))))
 
 (defn wrap-authentication [handler]

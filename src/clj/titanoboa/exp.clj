@@ -4,23 +4,28 @@
             [clojure.tools.logging :as log]
             [cognitect.transit :as transit]
             [taoensso.nippy :as nippy]
-            [titanoboa.dependencies :as deps]))
+            [titanoboa.dependencies :as deps])
+  (:import [pl.joegreen.lambdaFromString LambdaFactory DynamicTypeReference]
+           (java.io ObjectOutputStream)))
 
 (def ^:dynamic *job* {})
 (def ^:dynamic *properties* {})
 
-(defrecord Expression [value])
+(defrecord Expression [value type])
 
 (defn read-expression [expr]
-  (if (string? expr)
-    (titanoboa.exp.Expression. expr)
-    (titanoboa.exp.Expression. (:value expr))))
+  (cond
+    (string? expr) (->Expression expr nil)
+    (vector? expr) (let [[v t] expr] (->Expression v t))
+    (map? expr) (map->Expression expr)))
 
-(def transit-write-handler (transit/write-handler (constantly "titanoboa.exp.Expression") #(:value %)))
+(def transit-write-handler (transit/write-handler (constantly "titanoboa.exp.Expression") (fn [val] [(:value val) (:type val)])))
 (def transit-read-handler (transit/read-handler #(read-expression %)))
 
 (def edn-reader-map {'titanoboa.exp.Expression #'titanoboa.exp/read-expression
-                     'titanoboa.exp/Expression #'titanoboa.exp/read-expression})
+                     'titanoboa.exp/Expression #'titanoboa.exp/read-expression
+                     'megalodon.exp.Expression #'titanoboa.exp/read-expression
+                     'megalodon.exp/Expression #'titanoboa.exp/read-expression})
 
 (defn expression? [exp]
   (= (type exp) titanoboa.exp.Expression))
@@ -53,7 +58,11 @@
     (try
       (let [fn-key (or fn-key :workload-fn)
             workload-fn (get step fn-key)]
-        ((load-string (:value workload-fn)) job))
+        (case (:type workload-fn)
+                "java" (-> (LambdaFactory/get)
+                           (.createLambdaUnchecked (:value workload-fn) (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, clojure.lang.IPersistentMap>"))
+                           (.apply properties))
+                ((load-string (:value workload-fn)) properties)))
       (catch Exception e
         (log/warn "workload-fn of step [" (:id step) "] threw an Exception: " e)
         {:exit-code "error"
@@ -115,3 +124,21 @@
 (nippy/extend-thaw :core-async-chan
                    [data-input]
                    :core-async-chan)
+;;FIXME cast this ino normal Exception upstream
+(nippy/extend-freeze pl.joegreen.lambdaFromString.LambdaCreationException :lambda-creation-exception
+                     [x data-output]
+                     (.writeUTF data-output (.getMessage x)))
+
+(nippy/extend-thaw :lambda-creation-exception
+                   [data-input]
+                   (java.lang.Exception. (.readUTF data-input)))
+
+  #_(def wfn (.createLambda (LambdaFactory/get)
+                        "p -> {Integer b = (Integer) p.valAt(\"a\");
+                        b++;
+                        return p.assoc(\"b\", b);}"
+                        "Function< clojure.lang.PersistentArrayMap,  clojure.lang.IPersistentMap>"))
+;;=> #'titanoboa.server/wfn
+;;(.apply wfn {"a" (int 0)})
+;;=> {"a" 0, "b" 1}
+clojure.lang.PersistentArrayMap

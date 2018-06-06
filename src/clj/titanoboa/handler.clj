@@ -51,14 +51,21 @@
       (GET "/revisions" [] {:body (into {} (repo/list-all-revisions steps-repo-path))})
       (GET "/:def-name" [def-name] {:body (repo/get-head-def steps-repo-path def-name)})
       (GET "/:def-name/:revision" [def-name revision] {:body (repo/get-def-rev steps-repo-path def-name (Integer. revision))})
-      (POST "/:def-name" [step-type definition] {:body (repo/save! (assoc definition :type (util/tokey step-type)) steps-repo-path :type)}))
+      (POST "/:def-name" [step-type definition notes :as r] {:body (repo/save! {:def (assoc definition :type (util/tokey step-type))
+                                                                                :repo-path steps-repo-path
+                                                                                :key :type
+                                                                                :user (or (get-in r [:auth-user :name]) "anonymous")
+                                                                                :revision-notes (or notes "")})}))
     (context "/repo/jobdefinitions" [] ;;TODO following should be loaded from atom which would be asynchronously updated from file system on change
       (GET "/" [] {:body (keyify :name (repo/get-all-head-defs jobs-repo-path))})
       (GET "/heads" [] {:body (into {} (repo/list-head-defs jobs-repo-path))})
       (GET "/revisions" [] {:body (into {} (repo/list-all-revisions jobs-repo-path))})
       (GET "/:def-name" [def-name] {:body (repo/get-head-def jobs-repo-path def-name)})
       (GET "/:def-name/:revision" [def-name revision] {:body (repo/get-def-rev jobs-repo-path def-name (Integer. revision))})
-      (POST "/:def-name" [def-name definition] {:body (repo/save! (assoc definition :name def-name) jobs-repo-path)})
+      (POST "/:def-name" [def-name definition notes :as r] {:body (repo/save! {:def (assoc definition :name def-name)
+                                                                         :repo-path jobs-repo-path
+                                                                         :user (or (get-in r [:auth-user :name]) "anonymous")
+                                                                         :revision-notes (or notes "")})}) ;;job-def repo-path key revision-notes user
       (POST "/:def-name/repl" [def-name snippet] {:body {:result (exp/eval-snippet snippet (symbol def-name))}}))
     (context "/systems" []
       (GET "/" [] {:body (merge-with merge (into {} (system/live-systems)) systems-catalogue)})
@@ -91,9 +98,9 @@
                      {node-id
                        {:systems (merge-with merge (into {} (system/live-systems)) systems-catalogue) :last-hearbeat-age 0 :source true :state :live}}}))
     (context "/archive" []
-      (GET "/jobs" [limit :<< as-int offset :<< as-int order] (do (log/debug "Recieved request to list jobs, limit is ["limit"]")
+      (GET "/jobs" [limit :<< as-int offset :<< as-int order-by order] (do (log/info "Received request to list jobs, limit is ["limit"] order is " order)
                                                                   (if archive-ds-ks
-                                                                    {:body (db/list-jobs (get-in @system/systems-state archive-ds-ks) (or limit 50) (or offset 0) order)}
+                                                                    {:body (db/list-jobs (get-in @system/systems-state archive-ds-ks) (or limit 50) (or offset 0) (when (and order-by order) [(keyword order-by) (keyword order)]))}
                                                                     {:status 404 :body {}})))
       (GET "/jobs/:jobid" [jobid] (if archive-ds-ks  {:body (db/get-job (get-in @system/systems-state archive-ds-ks) jobid)}
                                                      {:status 404 :body {}})))))
@@ -120,17 +127,17 @@
     (handler request)))
 
 
-(defn get-app-routes [{:keys [auth?] :as config}]
+(defn get-app-routes [{:keys [auth? auth-conf] :as config}]
   (if auth?
     (routes
       (-> (get-public-routes config)
           simple-logging-middleware
-          auth/wrap-auth-token
+          (auth/wrap-auth-token (:pubkey auth-conf))
           simple-logging-middleware)
       (-> (get-secured-routes config)
           auth/wrap-authentication
           simple-logging-middleware
-          auth/wrap-auth-token))
+          (auth/wrap-auth-token (:pubkey auth-conf))))
     (routes
       (-> (get-public-routes config)
           simple-logging-middleware)

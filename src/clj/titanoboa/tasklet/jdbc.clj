@@ -3,7 +3,7 @@
             [clojure.java.jdbc :as jdbc]
             [titanoboa.system]))
 
-(defn query [{{:keys [response-property-name data-source-ks query] :as properties} :properties :as job}]
+(defn query [{:keys [response-property-name data-source-ks query] :as properties}]
   (let [q (cond
             (vector? query) query
             (map? query) (sql/format query))

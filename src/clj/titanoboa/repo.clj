@@ -72,13 +72,41 @@
         rev-seq (doall (map (fn [d] [(.getName d) (get-head-rev d)]) dir-seq))]
     rev-seq))
 
+(defn get-revision-notes
+  ([def-folder]
+   (let [f (java.io.File. def-folder "HEAD")]
+     (when (.exists f)
+       (let [raf (java.io.RandomAccessFile. f "r")
+             length (.length raf)
+             last-rev-idx (if (> length 7 ) (.readLong raf) nil)]
+         (loop [notes-map {}]
+           (let [record  (try {(.readLong raf)
+                               {:user (.readUTF raf)
+                                :notes (.readUTF raf)}}
+                              (catch java.io.EOFException e
+                                nil))]
+             (if record
+               (recur (merge notes-map record))
+               notes-map)))))))
+  ([job-def repo-path]
+   (let [def-name (name ((or key :name) job-def))
+         def-folder (java.io.File. repo-path def-name)]
+     (get-revision-notes def-folder))))
+
 (defn list-all-revisions [repo-folder]
   "Iterates through job def folders in provided repo folder and retrieves names and head revision numbers of all available job defs.
-  Returns sequence of tuples in a format of ([job-def-name [[revision Date] [revision Date]]])."
+  Returns sequence of vectors in a format of ([job-def-name [[revision Date user-name notes] [revision Date user-name notes]]])."
   (let [dir-seq (filter #(.isDirectory %) (fs/list-dir repo-folder))
+        rev-notes (doall (reduce (fn [v d] (merge v {(.getName d) (get-revision-notes d)})) {} dir-seq))
         rev-seq (doall (map (fn [d] [(.getName d)
-                                     (sort #(compare (first %2) (first %1)) (mapv (fn [[k v]] [k (java.util.Date. (.lastModified v))]) (list-revisions d)))]) dir-seq))]
+                                     (sort #(compare (first %2) (first %1)) (mapv (fn [[k v]] [k
+                                                                                               (java.util.Date. (.lastModified v))
+                                                                                               (get-in rev-notes [(.getName d) k :user])
+                                                                                               (get-in rev-notes [(.getName d) k :notes])])
+                                                                                  (list-revisions d)))])
+                            dir-seq))]
     rev-seq))
+
 
 (defn get-all-head-defs [repo-folder]
   "Iterates through job def folders in provided repo folder and retrieves head revisions of all available job defs.
@@ -142,23 +170,30 @@
  (.release l)
  (.close raf))
 
-(defn save! [job-def repo-path &[key]]
+(defn save! [{:keys [def repo-path key revision-notes user]}]
   "Saves provided job-definition onto the file system as a new revision. Returns the newly assigned revision number.
   New revision number is calculated based on max file extension number in the job def folder.
   To obtain unique sequential revision number and avoid race conditions this method is synchronized locally (via locking)
   and also uses JVM's  lock on File System level (via a flag file named 'HEAD') so as multiple JVMs in a cluster would synchronize on this method as well."
   (locking lock
-    (let [def-name (name ((or key :name) job-def))
+    (let [def-name (name ((or key :name) def))
           def-folder (java.io.File. repo-path def-name)
-          _ (if-not (.exists def-folder) (.mkdir def-folder))
+          _ (if-not (.exists def-folder) (.mkdirs def-folder))
           [raf l] (lock-head-file! def-folder)
+          length (.length raf)
+          idx (if (= length 0) 8 length)
           [rev _] (read-head def-folder)
           new-rev (inc rev)
           new-rev-ext (format "%03d" new-rev)
           new-rev-filename (str def-name "." new-rev-ext ".edn")
           new-rev-file (java.io.File. def-folder new-rev-filename)]
-      (spit new-rev-file (assoc job-def :revision new-rev))
-      (.writeInt raf new-rev)
+      (spit new-rev-file (assoc def :revision new-rev))
+      (.seek raf 0)
+      (.writeLong raf idx)
+      (.seek raf idx)
+      (.writeLong raf new-rev)
+      (.writeUTF raf user)
+      (.writeUTF raf revision-notes)
       (release-lock! raf l)
       new-rev)))
 
