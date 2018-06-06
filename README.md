@@ -70,7 +70,7 @@ then execute the jar:
     
      java -jar titanoboa.jar
 
-##License
+## License
 Copyright © Miro Kubicek
 
 Distributed under AGPL license.
