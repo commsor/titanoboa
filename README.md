@@ -9,8 +9,8 @@ You can run it on-premises or in a cloud.
 See also http://www.titanoboa.io
 
 ## Getting Started
-Download the latest release from http://www.titanoboa.io. The release is a jar file.
-Download titanoboa GUI titanoboa.io. The GUI is distributed in a form of a zip file. 
+Download the latest release from http://www.titanoboa.io/titanoboa.jar. It is a single jar file.
+Download titanoboa GUI from http://www.titanoboa.io/titanoboa-gui.zip. The GUI is distributed in a form of a zip file. 
 
     curl --remote-name http://www.titanoboa.io/titanoboa.jar
     curl --remote-name http://www.titanoboa.io/titanoboa-gui.zip
