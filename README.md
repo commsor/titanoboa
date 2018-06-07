@@ -40,7 +40,7 @@ Congratulations! You have just started your titanoboa server!
 ### Prerequisites
 Java 8 JRE or JDK. Almost all of the functionality works on Java 7 and higher, however Java Lambda support has been tested only on Java 8.
 
-### Ruinning server without GUI
+### Running server without GUI
 
 Titanoboa GUI is great place for developing and designing new workflows as well as for managing their execution and monitoring the status of your server(s).
 It is also a great starting point for evaluating and exploring the titanoboa platform.
