@@ -76,4 +76,4 @@ then execute the jar:
 ## License
 Copyright © Miro Kubicek
 
-Distributed under AGPL license.
+Titanoboa is dual-licensed under either AGPL license or a Commercial license.
