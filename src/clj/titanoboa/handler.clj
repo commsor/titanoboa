@@ -9,6 +9,8 @@
             [ring.middleware.format-response :refer [wrap-restful-response]]
             [ring.middleware.reload :refer [wrap-reload]]
             [ring.middleware.params :refer [wrap-params]]
+            [me.raynes.fs :as fs]
+            [clojure.java.io :as io]
             [hiccup.core :refer [html]]
             [hiccup.page :refer [include-js include-css]]
             [prone.middleware :refer [wrap-exceptions]]
@@ -36,15 +38,20 @@
                                            :broadcast-interval 5000
                                            :msg-exipre "5000"}))
 
+(defn read-n-lines [n filename]
+  (with-open [rdr (io/reader filename)]
+    (doall (take-last n (line-seq rdr)))))
 
 #_(resolve  (:a (clojure.edn/read-string "{:a titanoboa.system.rabbitmq/distributed-core-system}")))
 #_((resolve  (clojure.edn/read-string "titanoboa.system.rabbitmq/distributed-core-system")) {})
 ;; /cluster/nodes/127.0.1.1:3000/systems/:core
 ;;TODO consider instead of passing config as tehis fnction's parameter injecting necessary config directly into request via additional ring middleware?
-(defn get-secured-routes [{:keys [steps-repo-path jobs-repo-path systems-catalogue archive-ds-ks node-id] :as config}]
+(defn get-secured-routes [{:keys [steps-repo-path jobs-repo-path systems-catalogue archive-ds-ks node-id log-file-path] :as config}]
   (routes
     (GET "/user" req {:body (:auth-user req)})
     (POST "/user/logout" req {:status 401 :session {}})
+    (GET "/log" [lines :<< as-int] {:body (when (and log-file-path (fs/exists? log-file-path))
+                                                (vec (read-n-lines lines log-file-path)))})
     (context "/repo/stepdefinitions" [] ;;TODO following should be loaded from atom which would be asynchronously updated from file system on change
       (GET "/" [] {:body (repo/get-all-head-defs steps-repo-path)})
       (GET "/heads" [] {:body (into {} (repo/list-head-defs steps-repo-path))})

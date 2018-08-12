@@ -115,7 +115,7 @@
      (start-job! system-key conf response-ch false)
      (<!! response-ch))))
 
-(defn init-first-step [{{:keys [steps] :as jobdef} :jobdef :keys [state next-step jobdir properties] :as job}]
+(defn init-first-step [{{:keys [steps] :as jobdef} :jobdef :keys [state next-step jobdir properties step-start] :as job}]
   "Initializes first step of a job. Takes a job map as an argument and returns the updated map. The step function is NOT called in the process.
 	if provided job is in :initial state, it finds a first step in steps vector and uses it as a current step.
 	Job's properties are updated with step properties (and overriden if necessary) and its state is changed to :running."
@@ -124,21 +124,22 @@
       (log/info "Initializing a new job; First step will be: [" (:id step) "]")
       (assoc (exp/eval-ordered (:properties step) job)
              :step step
-             :state :running))
+             :state :running
+             :step-start step-start))
     job))
 
-(defn init-step [{{:keys [steps] :as jobdef} :jobdef :keys [state next-step jobdir properties step-retries] :as job} node-id]
+(defn init-step [{{:keys [steps] :as jobdef} :jobdef :keys [state step-start next-step jobdir properties step-retries node-id] :as job}]
   (let [step (first (filter #(= (:id %) next-step) steps))
         retry-count (or (get step-retries next-step) 0)
         retrying? (> retry-count 0)]
       (log/info "Initializing a next step; next step ["next-step"] was found among steps as step [" (:id step) "]")
       (assoc (exp/eval-ordered (:properties step) job)
-             :step step :step-state (if retrying? :retrying :running) :history (conj (get job :history) {:id (:id step) :step-state (if retrying? :retrying :running) :start (java.util.Date.) :node-id node-id :retry-count retry-count}))))
+             :step step :step-start step-start :step-state (if retrying? :retrying :running) :history (conj (get job :history) {:id (:id step) :step-state (if retrying? :retrying :running) :start step-start :node-id node-id :retry-count retry-count}))))
 
-(defn initialize-step [{:keys [state] :as job} node-id]
+(defn initialize-step [{:keys [state] :as job}]
   (if (= state :initial)
     (init-first-step job)
-    (init-step job node-id)))
+    (init-step job)))
 
 (defn- normalize-result [step-result]
   (if (string? step-result) (clojure.string/lower-case step-result) step-result))
@@ -342,12 +343,11 @@
       [true (assoc step-retries-map id (inc retry-count))]
       [false step-retries-map])))
 
-(defn process-step [{:keys [state step start map-steps thread-stack step-retries] :as job} node-id]
+(defn process-step [{:keys [state step step-start start map-steps thread-stack step-retries] :as job} node-id]
   "Processes current step by evaluating and calling step's workload function. Returns a touple of commit callback channel (if applicable) and the updated step map.
   The commit callback channel is used only if one of the step's threads is still running upon steps completion
   - the channel will be used to defer current job message's receipt acknowledgement."
   (let [step-id (:id step)
-        step-start (java.util.Date.)
         retry-count (get step-retries step-id)
         message-start (str "Step [" step-id "] in progress...\n")
         _ (log/debug message-start)
@@ -451,6 +451,15 @@
       (update :thread-stack pop)
       (update :parallel-threads pop)))
 
+(defn new-history-stub [{:keys [step step-start] :as job}]
+  (-> (select-keys job [:node-id :thread-stack :next-step :result :retry-count :step-state])
+      (assoc :id (:id step) :start step-start)))
+
+(defn add->history [job {:keys [step-end end message exception result] :as props}]
+  (update job :history conj (-> (new-history-stub job)
+                                (merge props (if (or step-end end) {:end (or step-end end)
+                                                                    :duration (- (.getTime (or step-end end)) (.getTime (:step-start job)))} {})))))
+
 (defn orchestrate-join! [{:keys [thread-stack parallel-threads] :as job}]
   "To be performed from :main job thread. Orchestrates merge of other job threads (merges their properties into the current :main's).
   Returns job with merged properties and with thread stack and parallel-threads stack that do not contain data of the threads that were merged
@@ -480,20 +489,32 @@
         (if job-thread
           (do (log/info "Merging job with thread stack [" (:thread-stack job-thread) "] into the main thread...")
             (recur (-> main-thread-job
-                     (update :properties merge (:properties job-thread))
-                     (update :history concat (:history job-thread))
-                     (assoc :state (if (= :error (:state job-thread)) :error (:state main-thread-job))))
+                       (update :properties merge (:properties job-thread))
+                       (update :history concat (:history job-thread))
+                       (update :history #(into [] %))
+                       (assoc :state (if (= :error (:state job-thread)) :error (:state main-thread-job)))
+                       (assoc :step-state (if (or (= :error (:state job-thread)) (= :error (:state main-thread-job))) :error (:step-state main-thread-job)))
+                       (add->history {:message (str "Merged thread with stack " (:thread-stack job-thread) " into main thread." )}))
                  (conj ack-fns-vec ack-fn)))
-          [main-thread-job ack-fns-vec])))))
+          (if-not (= :error  (:step-state main-thread-job))
+            [main-thread-job ack-fns-vec]
+            [(-> main-thread-job
+                 (add->history
+                           {:message (str "Join failed as there were errors in other job's threads.") :end (java.util.Date.) :exception (ex-info "Join failed as there were errors in other job's threads." {})})
+                 (assoc :end (java.util.Date.)))
+             ack-fns-vec]))))))
 
 (defn orchestrate-step [{:keys [step] :as job} node-id]
   "Wrapper function around process-step fn.
   Processes the given step and then also checks if step is of type join and if this is the main job thread - if so, then it also orchestrates the join.
   Returns a map containing job, a vector of ack functions that are to be called/committed later and a commit-callback-ch if acking is to be delayed (for map jobs)."
-  (let [[commit-callback-ch job] (process-step job node-id)
+  (let [;; [commit-callback-ch job] (process-step job node-id) ;;FIXME swap order of these two lines?
         [main-thread-job ack-fns-vec] (if (and (= :join (:supertype step)) (orchestrate-join? job))
                                         (orchestrate-join! job)
-                                        [job []])]
+                                        [job []])
+        [commit-callback-ch main-thread-job] (if-not (= :error (:state main-thread-job))
+                                               (process-step main-thread-job node-id)
+                                               [nil main-thread-job])]
     {:job main-thread-job
      :ack-fns-vec ack-fns-vec
      :commit-callback-ch commit-callback-ch}))
@@ -539,10 +560,9 @@
                                    (channel/alt!!
                                      stop-chan :stopped
                                      [in-jobs-ch new-jobs-ch] ([m p] ;;FIXME update-job-cache + call dont-evict before calling initialize-step!
-                                                                (let [{:keys [state step jobdir jobid properties commands-ch thread-stack step-retries] :as job} (initialize-step m node-id)
+                                                                (let [{:keys [state step step-start jobdir jobid properties commands-ch thread-stack step-retries] :as job} (initialize-step (assoc m :step-start (java.util.Date.) :node-id node-id))
                                                                       retry-count (get step-retries (:id step))
-                                                                      command nil ;;(poll! commands-ch)
-                                                                      step-start (java.util.Date.)]
+                                                                      command nil ];;(poll! commands-ch)
                                                                   ;;TODO listen to a channel (will there be 1 channel for each job?) for lifecycle commands (pause/stop the job) - if suspended put to some "suspended" queue? Also jobs requiring human interaction will go there;
                                                                   (log/info "Retrieved job [" jobid "] from jobs channel; Starting step [" (:id step) "]")
                                                                   (dont-evict jobid)

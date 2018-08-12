@@ -26,8 +26,8 @@
   (contains? (sys-key systems-catalogue) :worker-def))
 
 (defn has-active-workers? [sys-key state-atom]
-  (and (contains? (sys-key @state-atom) :worker-def)
-       (every? nil? (get-in @state-atom [sys-key :worker-def]))))
+  (and (contains? (sys-key @state-atom) :workers)
+       (not-every? nil? (get-in @state-atom [sys-key :workers]))))
 
 (defn is-running?
   ([ns-sys-key state-atom]
@@ -81,12 +81,13 @@
           true)
         false))))
 
-(defn start-workers! [sys-key systems-catalogue n & [scope]]
+(defn start-workers! [sys-key systems-catalogue & [w-cnt scope]]
   (locking lock
     (let [ns-sys-key (scope->key sys-key scope)]
       (if (is-running? ns-sys-key systems-state)
-        (let [{:keys [worker-def]} (sys-key systems-catalogue)
-              system (get-in @systems-state [ns-sys-key :system])]
+        (let [{:keys [worker-def worker-count]} (sys-key systems-catalogue)
+              system (get-in @systems-state [ns-sys-key :system])
+              n (or  w-cnt worker-count n-cpu)]
           (log/info "Starting" n "workers for system" ns-sys-key ":")
           (doseq [x (range n)]
             (do
@@ -148,7 +149,7 @@
             (do
              (start-system! sys-key systems-catalogue config)
              (if (has-worker? sys-key systems-catalogue)
-               (start-workers! sys-key systems-catalogue (or n n-cpu))))))
+               (start-workers! sys-key systems-catalogue)))))
        systems-catalogue)))
 
 (defn stop-all-systems! []
@@ -162,7 +163,7 @@
   "starts system and specified number of workers"
   (start-system! sys-key systems-catalogue config scope)
   (when (has-worker? sys-key systems-catalogue)
-    (start-workers! sys-key systems-catalogue (or n n-cpu) scope)))
+    (start-workers! sys-key systems-catalogue n scope)))
 
 
 (defn live-systems []

@@ -26,7 +26,7 @@
                                              :step-state (keyword  (:stepstate item))
                                              :step {:id  (:stepid item)
                                                     :type (keyword (:steptype item))}})))
-            {:offset offset :limit limit :values []}
+            {:offset offset :limit limit :order order :values []}
             (jdbc/query ds query))))
 
 

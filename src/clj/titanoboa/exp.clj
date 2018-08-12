@@ -11,6 +11,8 @@
 (def ^:dynamic *job* {})
 (def ^:dynamic *properties* {})
 
+(def java-lambda-factory (LambdaFactory/get))
+
 (defrecord Expression [value type])
 
 (defn read-expression [expr]
@@ -59,7 +61,7 @@
       (let [fn-key (or fn-key :workload-fn)
             workload-fn (get step fn-key)]
         (case (:type workload-fn)
-                "java" (-> (LambdaFactory/get)
+                "java" (-> java-lambda-factory
                            (.createLambdaUnchecked (:value workload-fn) (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, clojure.lang.IPersistentMap>"))
                            (.apply properties))
                 ((load-string (:value workload-fn)) properties)))
@@ -133,6 +135,23 @@
                    [data-input]
                    (java.lang.Exception. (.readUTF data-input)))
 
+
+(nippy/set-freeze-fallback!
+  (fn [data-output x]
+    (let [s (str x)
+          ba (.getBytes s "UTF-8")
+          len (alength ba)]
+      (.writeByte data-output (byte 13))
+      (.writeInt data-output (int len))
+      (.write data-output ba 0 len))))
+
+;;interesting bug:
+;;throw+  applied to returned clj-http.headers/->HeaderMap cannot be serialized
+#_(-> (try (slingshot.slingshot/throw+ (get resp :headers) "status %s" (:status %))
+         (catch Exception e
+           e))
+    nippy/freeze)
+
   #_(def wfn (.createLambda (LambdaFactory/get)
                         "p -> {Integer b = (Integer) p.valAt(\"a\");
                         b++;
@@ -141,4 +160,4 @@
 ;;=> #'titanoboa.server/wfn
 ;;(.apply wfn {"a" (int 0)})
 ;;=> {"a" 0, "b" 1}
-clojure.lang.PersistentArrayMap
+;;clojure.lang.PersistentArrayMap
