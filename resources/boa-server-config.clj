@@ -3,9 +3,9 @@
 (defonce archival-queue-local (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))
 (alter-var-root #'server-config
                 (constantly {:systems-catalogue
-                                               {:core  {:system-def #'titanoboa.system.local/local-core-system
-                                                        :worker-def #'titanoboa.system.local/local-worker-system
-                                                        :autostart  true}}
+                                              {:core  {:system-def #'titanoboa.system.local/local-core-system
+                                                       :worker-def #'titanoboa.system.local/local-worker-system
+                                                       :autostart  true}}
                              :jobs-repo-path "dev-resources/repo/"
                              :steps-repo-path "dev-resources/step-repo/"
                              :job-folder-path "test/"
@@ -19,4 +19,3 @@
                                                :finished-jobs-chan archival-queue-local
                                                :eviction-interval (* 1000 60 5)
                                                :eviction-age (* 1000 60 60)}}}))
-
