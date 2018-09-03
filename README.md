@@ -6,7 +6,7 @@ You can run it on-premises or in a cloud.
 
 ![alt Logo](https://s3.eu-central-1.amazonaws.com/www.titanoboa.io/tb-logo-dark-nosubtitle.svg)
 
-See also http://www.titanoboa.io
+See also http://titanoboa.io and our [wiki](https://github.com/mikub/titanoboa/wiki) 
 
 <img src="http://www.titanoboa.io/sample-graph.gif" width="500"/>
 
