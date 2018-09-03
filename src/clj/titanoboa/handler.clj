@@ -46,7 +46,7 @@
 #_((resolve  (clojure.edn/read-string "titanoboa.system.rabbitmq/distributed-core-system")) {})
 ;; /cluster/nodes/127.0.1.1:3000/systems/:core
 ;;TODO consider instead of passing config as tehis fnction's parameter injecting necessary config directly into request via additional ring middleware?
-(defn get-secured-routes [{:keys [steps-repo-path jobs-repo-path systems-catalogue archive-ds-ks node-id log-file-path] :as config}]
+(defn get-secured-routes [{:keys [steps-repo-path jobs-repo-path systems-catalogue archive-ds-ks node-id log-file-path] :or {log-file-path "titanoboa.log"} :as config}]
   (routes
     (GET "/user" req {:body (:auth-user req)})
     (POST "/user/logout" req {:status 401 :session {}})
