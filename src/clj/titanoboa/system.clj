@@ -117,13 +117,13 @@
 (defn stop-system! [sys-key & [scope]]
   "Stops system based on provided system key (and scope).
   Returns the stopped system object (com.stuartsierra.component.SystemMap)."
-  (let [ns-sys-key (scope->key sys-key scope)]
-    (if-not (is-running? ns-sys-key systems-state)
-      (throw (IllegalStateException. "System cannot be stopped as it is not running!")))
-    (when (has-active-workers? ns-sys-key systems-state)
+  (locking lock
+    (let [ns-sys-key (scope->key sys-key scope)]
+      (if-not (is-running? ns-sys-key systems-state)
+        (throw (IllegalStateException. "System cannot be stopped as it is not running!")))
+      (when (has-active-workers? ns-sys-key systems-state)
         (log/info "Stopping all workers for system" ns-sys-key)
         (stop-all-workers! ns-sys-key))
-    (locking lock
       (log/info "Stopping system" ns-sys-key "...")
       (swap! systems-state update-in [ns-sys-key] assoc :state :stopping)
       (let [stopped-system (component/stop (get-in @systems-state [ns-sys-key :system]))]

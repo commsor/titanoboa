@@ -11,7 +11,7 @@
                                                                   :autostart  true}}
                              :jobs-repo-path "dev-resources/repo/"
                              :steps-repo-path "dev-resources/step-repo/"
-                             :job-folder-path "test/"
+                             :job-folder-path "dev-resources/job-folders/"
                              :enable-cluster false
                              :jetty {:join? false
                                      :port 3000}

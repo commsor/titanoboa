@@ -73,7 +73,7 @@
       [tracking-id id]
       id)))
 
-;;TODO move this to a separate namespace?
+;;TODO move this to a separate namespace (maybe to system?)?
 (defn run-sync-job! [{:keys [new-jobs-ch mq-pool] :as config}]
   "Initiates a job and synchronously blocks until it finishes. Returns the job map once the job finished.
   Waiting for the job's result is done via registering a core.async channel as a callback channel.
@@ -87,11 +87,10 @@
       (instantiate-job! (assoc config :sync true :callback-ch callback-ch)))
     (<!! callback-ch)))
 
+;;TODO move this to a separate namespace (maybe to system?)?
 ;;FIXME fix this need to go backdoor to grab systems config - it should flow down from the top!!! This is likely caused by my use of actions and action pool - functions from processor make calls to fns in the same namespace via actions, this seems weird!!
 ;;FIXME be consistent about jobdef-id vs jobdef-name
 ;;TODO add revision handling
-;;TODO choose whether to run synchronously or asynchronously - either return the chan that will contain the ID (async) or return the job ID straight away (sync)
-;;TODO allow passing in response channel as an attribute
 (defn start-job!
   "Dispatches an action request to start a job in given system. The request is dispatched to the system's action thread pool.
   If a response channel is provided (it has to be a core async channel, distributed channels are not accepted!) the job's id will be put on the channel once the job has been instantiated.
@@ -114,6 +113,21 @@
    (let [response-ch (chan 1)]
      (start-job! system-key conf response-ch false)
      (<!! response-ch))))
+
+(defn run-job!
+  "Dispatches a request to start a job in given system. Does not use action thread pool.
+  Returns the job id or the finished job if the sync flag is set to true."
+  [system-key {:keys [jobdef jobdef-name revision properties files] :as conf} sync]
+  (assert (system/is-running? system-key) "Cannot start a job in a system that is not running!")
+  (let [{:keys [new-jobs-chan job-state job-folder-root job-defs mq-session-pool] :as system} (get-in @system/systems-state [system-key :system])
+        job-conf (merge conf {:new-jobs-ch new-jobs-chan
+                              :state-agent job-state
+                              :job-folder job-folder-root
+                              :defs-atom job-defs
+                              :mq-pool (:pool mq-session-pool)})] ;;FIXME fix this need to go backdoor to grab systems config - it should flow down from the top!!! This is likely caused by my use of actions and action pool - functions from processor make calls to fns in the same namespace via actions, this seems weird!!
+    (if sync
+      (run-sync-job! job-conf)
+      {:jobid (instantiate-job! job-conf)})))
 
 (defn init-first-step [{{:keys [steps] :as jobdef} :jobdef :keys [state next-step jobdir properties step-start] :as job}]
   "Initializes first step of a job. Takes a job map as an argument and returns the updated map. The step function is NOT called in the process.
@@ -343,6 +357,15 @@
       [true (assoc step-retries-map id (inc retry-count))]
       [false step-retries-map])))
 
+(defn contains-some
+  "Returns the first non-nil value of (pred x) for any x in coll,
+  else nil.  One common idiom is to use a set as pred, for example
+  this will return :fred if :fred is in the sequence, otherwise nil:
+  (some #{:fred} coll)"
+  [pred coll]
+  (when (seq coll)
+    (if-not (nil? (pred (first coll))) (pred (first coll)) (recur pred (next coll)))))
+
 (defn process-step [{:keys [state step step-start start map-steps thread-stack step-retries] :as job} node-id]
   "Processes current step by evaluating and calling step's workload function. Returns a touple of commit callback channel (if applicable) and the updated step map.
   The commit callback channel is used only if one of the step's threads is still running upon steps completion
@@ -357,7 +380,7 @@
                      :reduce (process-reduce-step job)
                      (throw (IllegalStateException. "Invalid supertype for a step.")))
         result (if (map? result-map);;if workload-fn doesnt return map assume it just returned exit code
-                 (some result-map [:exit :code :return :return-code :exit-code])
+                 (contains-some result-map #{:exit :code :return :return-code :exit-code})
                  result-map)
         returned-props (when (map? result-map)
                          (if (contains? result-map :properties)
@@ -377,12 +400,29 @@
         next-step (if (and retrying? (not next-step)) step-id next-step)
         _ (if (and error? (not next-step)) (throw (:error result-map)))
         state (if next-step state :finished)
-        step-end (java.util.Date.)
         finished? (= state :finished)
-        history-map {:id step-id :node-id node-id :thread-stack thread-stack :next-step next-step :result result :retry-count retry-count :step-state (if error? :caught-error :completed) :exception exception :message message-end :start step-start :end step-end :duration (- (.getTime step-end) (.getTime step-start))}
-        job (assoc job :next-step next-step :state state :step-state (if error? :caught-error :completed) :aggregator-notif-ch aggregator-notif-ch :properties (merge (:properties job) returned-props)
-                       :map-steps (if new-map-step (assoc map-steps step-id new-map-step) map-steps) :step-retries step-retries
-              :history (conj (get job :history) history-map) :end (if finished? step-end) :duration (if finished? (- (.getTime step-end) (.getTime start))))]
+        step-end (java.util.Date.)
+        history-map {:id step-id
+                     :node-id node-id
+                     :thread-stack thread-stack
+                     :next-step next-step
+                     :result result
+                     :retry-count retry-count
+                     :step-state (if error? :caught-error :completed)
+                     :exception exception
+                     :message message-end
+                     :start step-start
+                     :end step-end
+                     :duration (- (.getTime step-end) (.getTime step-start))}
+        job (assoc job :next-step next-step :state state
+                       :step-state (if error? :caught-error :completed)
+                       :aggregator-notif-ch aggregator-notif-ch
+                       :properties (merge (:properties job) returned-props)
+                       :map-steps (if new-map-step (assoc map-steps step-id new-map-step) map-steps)
+                       :step-retries step-retries
+                       :history (conj (get job :history) history-map)
+                       :end (when finished? step-end)
+                       :duration (when finished? (- (.getTime step-end) (.getTime start))))]
     [commit-callback-ch job]))
 
 (defn get-prop-trimming-fn [dont-log-properties trim-logged-properties properties-trim-size]

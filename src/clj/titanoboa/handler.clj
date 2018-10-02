@@ -67,8 +67,12 @@
       (GET "/" [] {:body (keyify :name (repo/get-all-head-defs jobs-repo-path))})
       (GET "/heads" [] {:body (into {} (repo/list-head-defs jobs-repo-path))})
       (GET "/revisions" [] {:body (into {} (repo/list-all-revisions jobs-repo-path))})
-      (GET "/:def-name" [def-name] {:body (repo/get-head-def jobs-repo-path def-name)})
-      (GET "/:def-name/:revision" [def-name revision] {:body (repo/get-def-rev jobs-repo-path def-name (Integer. revision))})
+      (GET "/:def-name" [def-name] (if-let [jd (repo/get-head-def jobs-repo-path def-name)]
+                                     {:body jd}
+                                     {:status 404 :body {:status "error" :message (str "Job definition " def-name " was not found!")}}))
+      (GET "/:def-name/:revision" [def-name revision] (if-let [jd-revision (repo/get-def-rev jobs-repo-path def-name (Integer. revision))]
+                                                        {:body jd-revision}
+                                                        {:status 404 :body {:status "error" :message (str "Revision " revision " was not found!")}}))
       (POST "/:def-name" [def-name definition notes :as r] {:body (repo/save! {:def (assoc definition :name def-name)
                                                                          :repo-path jobs-repo-path
                                                                          :user (or (get-in r [:auth-user :name]) "anonymous")
@@ -88,8 +92,8 @@
            :start (do (system/start-system-bundle! (util/tokey (http-util/url-decode system)) systems-catalogue config (int (or wcount 0)) scope) {:status 200})
            :restart {:status 200 :body (system/restart-system! (util/tokey (http-util/url-decode system)) systems-catalogue config)})})
       (POST "/workers" [] {:body (system/start-workers! (util/tokey (http-util/url-decode system)) systems-catalogue 1)});; TODO add PATCH to stop/start workers?
-      (POST "/jobs" [conf] (do (log/debug "Recieved request to start a job on system [" (http-util/url-decode system) "] with config ["conf"]")
-                               {:status 201 :body {:jobid (processor/start-job! (util/tokey (http-util/url-decode system)) conf)}})))
+      (POST "/jobs" [conf sync] (do (log/debug "Recieved request to start a job on system [" (http-util/url-decode system) "] with config ["conf"]")
+                               {:status 201 :body (processor/run-job! (util/tokey (http-util/url-decode system)) conf sync)})))
     (context "/cluster" []
       (GET "/" []  {:status 404})
       (GET "/id" [] {:status 404})
@@ -167,6 +171,17 @@
       (.read rdr buf)
       buf)))
 
+(def transit-handlers-encode {titanoboa.exp.Expression exp/transit-write-handler
+                             clojure.lang.Var (transit/write-handler (constantly "s") #(str %))
+                             titanoboa.exp.SerializedVar (transit/write-handler (constantly "s") #(:symbol %))
+                             java.util.GregorianCalendar (transit/write-handler (constantly "m") #(.getTimeInMillis %) #(str (.getTimeInMillis %)))
+                             java.io.File (transit/write-handler (constantly "s") #(.getCanonicalPath %))
+                             java.lang.Exception (transit/write-handler (constantly "s") #(str %)) ;;FIXME - properly serialize stack trace etc.
+                             clojure.lang.Fn (transit/write-handler (constantly "s") #(str %))
+                             clojure.lang.Atom (transit/write-handler (constantly "s") #(str %))
+                             clojure.core.async.impl.channels.ManyToManyChannel (transit/write-handler (constantly "s") #(str %))})
+
+(def transit-handlers-decode {"titanoboa.exp.Expression" exp/transit-read-handler})
 
 ;;TODO handle java.lang.Object
 (defn get-ring-app [config]
@@ -174,17 +189,9 @@
       ;;simple-logging-middleware
       (wrap-restful-format {:formats [:transit-json :transit-msgpack :edn :json-kw]
                             :response-options {:transit-json
-                                                {:handlers {titanoboa.exp.Expression exp/transit-write-handler
-                                                            clojure.lang.Var (transit/write-handler (constantly "s") #(str %))
-                                                            titanoboa.exp.SerializedVar (transit/write-handler (constantly "s") #(:symbol %))
-                                                            java.util.GregorianCalendar (transit/write-handler (constantly "m") #(.getTimeInMillis %) #(str (.getTimeInMillis %)))
-                                                            java.io.File (transit/write-handler (constantly "s") #(.getCanonicalPath %))
-                                                            java.lang.Exception (transit/write-handler (constantly "s") #(str %))
-                                                            clojure.lang.Fn (transit/write-handler (constantly "s") #(str %))
-                                                            clojure.lang.Atom (transit/write-handler (constantly "s") #(str %))
-                                                            clojure.core.async.impl.channels.ManyToManyChannel (transit/write-handler (constantly "s") #(str %))}}}
+                                                {:handlers transit-handlers-encode}}
                             :params-options {:transit-json
-                                                {:handlers {"titanoboa.exp.Expression" exp/transit-read-handler}}}})
+                                                {:handlers transit-handlers-decode}}})
       wrap-params
       (auth/wrap-auth-cookie "SoSecret12345678")))
 

@@ -13,7 +13,11 @@
             [titanoboa.database :as db]
             [com.stuartsierra.component :as component]
             [clojure.tools.logging :as log]
-            [titanoboa.system.local]))
+            [titanoboa.system.local])
+  (:import [org.eclipse.jetty.server
+            Server]))
+
+(def ^Server server nil)
 
 (defn process-cluster-command [c]
   (eval c))
@@ -43,7 +47,7 @@
 ;;TODO also size needed will depend on whether or not AWS/SQS is used, as the polling and acknowledgement and alt operations all use threading macro
 (System/setProperty "clojure.core.async.pool-size" "24")
 
-(def default-config {:host (.getHostAddress (java.net.InetAddress/getLocalHost))
+(defn get-default-config [& [host]] {:host (or host (System/getProperty "boa.server.host") (.getHostAddress (java.net.InetAddress/getLocalHost)))
                      :jetty {:port 3000
                              :join? false}})
 
@@ -61,13 +65,15 @@
     (deps/start-deps-watch! config-path)
     (log/warn "No external dependencies configuration found. No dependencies will be loaded!")))
 
-(defn init-config! []
-  (if-let [config-path (System/getProperty "boa.server.config.path")]
-    (load-file config-path)
-    (if-let [cp-config (io/resource "boa-server-config.clj")]
-      (load-string (slurp cp-config))
-      (throw (IllegalStateException. "Titanoboa server config file was not found. It should be either on classpath (as \"boa-server-config.clj\") or its path should be denoted by \"boa.server.config.path\" system property."))))
-  (alter-var-root #'server-config #(merge default-config %))
+(defn init-config! [cfg host]
+  (if cfg
+    (alter-var-root #'server-config (constantly cfg))
+    (if-let [config-path (System/getProperty "boa.server.config.path")]
+      (load-file config-path)
+      (if-let [cp-config (io/resource "boa-server-config.clj")]
+        (load-string (slurp cp-config))
+        (throw (IllegalStateException. "Titanoboa server config file was not found. It should be either on classpath (as \"boa-server-config.clj\") or its path should be denoted by \"boa.server.config.path\" system property.")))))
+  (alter-var-root #'server-config #(merge (get-default-config host) %))
   (alter-var-root #'server-config assoc :node-id (get-node-id server-config))
   (alter-var-root #'server-config assoc :systems-catalogue (into {}
                                                                  (mapv (fn [[k v]]
@@ -75,25 +81,32 @@
                                                                                    (when (:worker-def v) {:worker-def-source (clojure.repl/source-fn (var->symbol (:worker-def v)))}))])
                                                                        (:systems-catalogue server-config)))))
 
-(defn shutdown []
+;;TODO revise how catalogue is being stored/accessed? Seems it is inevitable to store it in some atom or var since it needs to be accessed arbitrarily from different places?
+;;(system/set-system-catalogue! (:systems-catalogue server-config))
+
+(defn shutdown! []
   (println "Shutting down...")
   (log/info "Shutting down...")
-  (deps/stop-deps-watch!)
-  (system/stop-all-systems!)
-  (shutdown-agents)
-  (.interrupt clojure.core.async.impl.timers/timeout-daemon))
+  (.stop server)
+  (try (deps/stop-deps-watch!))
+  (try (system/stop-all-systems!)))
 
-(defn -main [& args]
+(defn- shutdown-runtime![]
+  (shutdown!)
+  (try (shutdown-agents))
+  (try (.interrupt clojure.core.async.impl.timers/timeout-daemon)))
+
+(defn -main [& [cfg host]]
   (log/info "Starting Titanoboa server...")
-  (.addShutdownHook (Runtime/getRuntime) (Thread. shutdown))
+  (.addShutdownHook (Runtime/getRuntime) (Thread. shutdown-runtime!))
   (require-extensions)
   (load-dependencies!)
-  (init-config!)
+  (init-config! cfg host)
   (system/run-systems-onstartup! (:systems-catalogue server-config) server-config)
-  (let []
-    (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
-    (run-jetty (handler/get-ring-app server-config)
-               (:jetty server-config))))
+  (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
+  (alter-var-root #'server
+                  (constantly (run-jetty (handler/get-ring-app server-config)
+                                         (:jetty server-config)))))
 
 ;;comment this out if NOT running server w/ figwheel or REPL:
 #_(do

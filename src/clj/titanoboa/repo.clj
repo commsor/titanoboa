@@ -23,6 +23,7 @@
 
 (defn read-job-def [edn-file]
   "Returns job definitions from specified edn file."
+  (when-not (fs/exists? edn-file) (throw (java.io.FileNotFoundException. "The revision of the file was not found in repository!")))
   (let [content (edn/read-string
                   {:readers exp/edn-reader-map}
                   (slurp edn-file))]
@@ -62,8 +63,10 @@
                        (apply max (keys revisions-map)))
         content (if (empty? revisions-map)
                   nil
-                  (read-job-def (get revisions-map max-revision)))]
-    [max-revision (assoc content :revision max-revision)]))
+                  (-> (get revisions-map max-revision)
+                      read-job-def
+                      (assoc :revision max-revision)))]
+    [max-revision content]))
 
 (defn list-head-defs [repo-folder]
   "Iterates through job def folders in provided repo folder and retrieves names and head revision numbers of all available job defs.
@@ -149,7 +152,9 @@
   "Returns specified revision of given job definition from given repository."
   (let [def-folder (java.io.File. repo-folder def-name)
         revisions-map (list-revisions def-folder) ;;TODO handle 404
-        content (read-job-def (get revisions-map revision))]
+        content (if-let [revision-file (get revisions-map revision)]
+                  (read-job-def revision-file)
+                  nil)]
     content))
 
 #_(defn list-archive [def-folder]
