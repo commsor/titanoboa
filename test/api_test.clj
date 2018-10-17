@@ -77,7 +77,7 @@
   (let [resp (client/post "http://localhost:3000/repo/jobdefinitions/test"
                           (req {:definition job-def
                                 :notes      revision-note}))]
-    (is (= (:status resp) 200))
+    (is (= (:status resp) 201))
     (is (number? (:body resp)))
     (is (= (:body resp) 1))))
 
@@ -85,7 +85,7 @@
   (let [resp (client/post "http://localhost:3000/repo/jobdefinitions/test"
                           (req {:definition job-def
                                 :notes      revision-note}))]
-    (is (= (:status resp) 200))
+    (is (= (:status resp) 201))
     (is (number? (:body resp)))
     (is (= (:body resp) 2))))
 
@@ -189,14 +189,14 @@
 
 (deftest create-job
   (testing "starting a new job"
-    (let [{:keys [status body] :as resp}  (client/post "http://localhost:3000/systems/%3Acore/jobs" (req {:conf {:jobdef-name jd-name}}))]
+    (let [{:keys [status body] :as resp}  (client/post "http://localhost:3000/systems/%3Acore/jobs" (req {:jobdef-name jd-name}))]
       (is (= status 201))
       (is (instance? java.util.UUID (java.util.UUID/fromString (:jobid body))))
       (swap! jobs-created conj (:jobid body)))))
 
 (deftest create-job-sync
   (testing "starting a new job"
-    (let [{:keys [status body] :as resp}  (client/post "http://localhost:3000/systems/%3Acore/jobs" (req {:conf {:jobdef-name jd-name}
+    (let [{:keys [status body] :as resp}  (client/post "http://localhost:3000/systems/%3Acore/jobs" (req {:jobdef-name jd-name
                                                                                                           :sync true}))]
       (is (= status 201))
       (let [{:keys [jobid properties history state]} body]
@@ -209,8 +209,8 @@
 
 (defn check-job-result-sync [name expected-message]
   (testing "starting a new job"
-    (let [{:keys [status body] :as resp}  (client/post "http://localhost:3000/systems/%3Acore/jobs" (req {:conf {:jobdef-name jd-name
-                                                                                                                 :properties {:name name}}
+    (let [{:keys [status body] :as resp}  (client/post "http://localhost:3000/systems/%3Acore/jobs" (req {:jobdef-name jd-name
+                                                                                                          :properties {:name name}
                                                                                                           :sync true}))]
       (is (= status 201))
       (let [{:keys [jobid properties history state]} body]
@@ -246,6 +246,7 @@
   ;; test job definitions repository API
   (create-job-definition)
   (repo-exists)
+  (create-job)
   (update-job-definition)
   (list-job-definitions)
   (get-job-definitions)
@@ -254,6 +255,9 @@
   (get-job-definition-err)
   (get-job-def-revision)
   (get-job-def-revision-err)
+
+  ;; job creation API
+  (create-job)
 
   ;; systems API
   (system-core-exists-running)

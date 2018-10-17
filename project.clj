@@ -21,6 +21,7 @@
                  [com.taoensso/nippy "2.12.1"]
                  [me.raynes/fs "1.4.6"]
                  [clojure-watch "0.1.14"]
+                 [io.methvin/directory-watcher "0.8.0"]
                  [ring-server "0.4.0"]
                  [ring "1.6.3"]
                  [ring/ring-defaults "0.1.5"]

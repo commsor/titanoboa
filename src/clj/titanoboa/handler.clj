@@ -76,7 +76,8 @@
       (POST "/:def-name" [def-name definition notes :as r] {:body (repo/save! {:def (assoc definition :name def-name)
                                                                          :repo-path jobs-repo-path
                                                                          :user (or (get-in r [:auth-user :name]) "anonymous")
-                                                                         :revision-notes (or notes "")})}) ;;job-def repo-path key revision-notes user
+                                                                         :revision-notes (or notes "")})
+                                                            :status 201})
       (POST "/:def-name/repl" [def-name snippet] {:body {:result (exp/eval-snippet snippet (symbol def-name))}}))
     (context "/systems" []
       (GET "/" [] {:body (merge-with merge (into {} (system/live-systems)) systems-catalogue)})
@@ -92,7 +93,7 @@
            :start (do (system/start-system-bundle! (util/tokey (http-util/url-decode system)) systems-catalogue config (int (or wcount 0)) scope) {:status 200})
            :restart {:status 200 :body (system/restart-system! (util/tokey (http-util/url-decode system)) systems-catalogue config)})})
       (POST "/workers" [] {:body (system/start-workers! (util/tokey (http-util/url-decode system)) systems-catalogue 1)});; TODO add PATCH to stop/start workers?
-      (POST "/jobs" [conf sync] (do (log/debug "Recieved request to start a job on system [" (http-util/url-decode system) "] with config ["conf"]")
+      (POST "/jobs" [sync & conf] (do (log/debug "Recieved request to start a job on system [" (http-util/url-decode system) "] with config ["conf"]")
                                {:status 201 :body (processor/run-job! (util/tokey (http-util/url-decode system)) conf sync)})))
     (context "/cluster" []
       (GET "/" []  {:status 404})

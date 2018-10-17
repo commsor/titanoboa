@@ -65,7 +65,7 @@
     (deps/start-deps-watch! config-path)
     (log/warn "No external dependencies configuration found. No dependencies will be loaded!")))
 
-(defn init-config! [cfg host]
+(defn init-config! [& [cfg host]]
   (if cfg
     (alter-var-root #'server-config (constantly cfg))
     (if-let [config-path (System/getProperty "boa.server.config.path")]

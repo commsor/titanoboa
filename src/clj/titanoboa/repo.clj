@@ -12,8 +12,9 @@
             [titanoboa.exp :as exp]
             [titanoboa.dependencies :as deps]
             [clojure.tools.logging :as log]
-            [clojure-watch.core :refer [start-watch]]
-            [com.stuartsierra.component :as component]))
+            #_[clojure-watch.core :refer [start-watch]]
+            [com.stuartsierra.component :as component])
+  (:import [io.methvin.watcher DirectoryWatcher DirectoryChangeEvent DirectoryChangeListener DirectoryChangeEvent$EventType]))
 
 (def lock (Object.))
 
@@ -202,37 +203,52 @@
       (release-lock! raf l)
       new-rev)))
 
-#_(defn load-job-def! [edn-file defs-atom]
-  "Loads job definitions from specified edn file into the provided atom (which is supposed to be a map). The file is supposed to contain
-either a single deifinition map or vector of maps (if containing multiple job defs)."
-  (let [content (edn/read-string
-                  {:readers edn-reader-map}
-                  (slurp edn-file))]
-    (log/info "Loading job definition(s) from file [" edn-file "]...")
-    (cond
-        (map? content) (swap! defs-atom assoc (:name content) content)
-        (vector? content) (swap! defs-atom merge (keyify :name content)))))
 
-(defrecord RepoWatcherComponent [folder-path jd-atom stop-callback-fn]
+(defn watcher-callback [jd-atom filename]
+  (when (re-matches #".*\.\d{3}\.edn" (.getName (java.io.File. filename)))
+    (log/info "Detected Repository change - file: " filename )
+    (try (let [jd (read-job-def filename)
+               jd-name (:name jd)
+               rev (:revision jd)]
+           (log/debug "Repository change - jd name: " jd-name )
+           (log/debug "Repository change - jd: " jd)
+           (swap! jd-atom update jd-name
+                  #(-> %
+                       (assoc rev {:job-def jd
+                                   #_:cl-registry #_(deps/load-jd-dependencies jd)})
+                       add-head2map)))
+         true
+         (catch Exception e
+           (log/warn e "Something went wrong during processing of a Repository change for file " filename " , retrying...")
+           false))))
+
+(defn callback-with-retry [f max-retry-count]
+  "Retries function f if it returns false, or until max-retry-count is reached."
+  (doall
+    (take-while #(false? (%))
+                (repeat max-retry-count f))))
+
+(defrecord RepoWatcherComponent [folder-path jd-atom watcher]
   component/Lifecycle
   (start [this]
-    (if stop-callback-fn
+    (if watcher
       this
-      (assoc this :stop-callback-fn (start-watch [{:path folder-path
-                                                 :event-types [:create]
-                                                 :bootstrap (fn [path] (log/info "Starting to watch repo folder for changes: " folder-path))
-                                                 :callback (fn [event filename]
-                                                             (when (re-matches #".*\.\d{3}\.edn" (.getName (java.io.File. filename)))
-                                                               (log/info "Detected Repository change - event: " event " file: " filename )
-                                                               (let [jd (read-job-def filename)
-                                                                     jd-name (:name jd)
-                                                                     rev (:revision jd)]
-                                                                 (swap! jd-atom update jd-name
-                                                                        #(-> %
-                                                                             (assoc rev {:job-def jd
-                                                                                         #_:cl-registry #_(deps/load-jd-dependencies jd)})
-                                                                             add-head2map)))))
-                                                 :options {:recursive true}}]))))
+      (let [folder (java.io.File. folder-path)]
+        (when-not (.exists folder) (.mkdirs folder))
+        (let [watcher (-> (DirectoryWatcher/builder)
+                        (.path (java.nio.file.Paths/get (.toURI folder)))
+                        (.listener (reify io.methvin.watcher.DirectoryChangeListener
+                                     (^void onEvent [this ^DirectoryChangeEvent event]
+                                       (case (.name (.eventType event))
+                                         "CREATE" (callback-with-retry (fn []
+                                                                          (watcher-callback jd-atom (.toString (.path event))))
+                                                                       5)
+                                         "OVERFLOW" (log/info "Overflow event registered for repository file " (.toString (.path event)))
+                                         nil))))
+                        .build)]
+          (log/info "Starting to watch repo folder for changes: " folder-path)
+          (.watchAsync watcher)
+          (assoc this :watcher watcher)))))
   (stop [this]
-    (stop-callback-fn)
-    (dissoc this :stop-callback-fn)))
+    (.close watcher)
+    (dissoc this :watcher)))
