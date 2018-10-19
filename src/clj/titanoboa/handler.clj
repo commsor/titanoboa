@@ -184,6 +184,15 @@
 
 (def transit-handlers-decode {"titanoboa.exp.Expression" exp/transit-read-handler})
 
+;;JSON encoders/decoders
+(cheshire.generate/add-encoder java.io.File
+                               (fn [f jsonGenerator]
+                                 (.writeString jsonGenerator (.getCanonicalPath f))))
+
+(cheshire.generate/add-encoder java.lang.Object
+                               (fn [o jsonGenerator]
+                                 (.writeString jsonGenerator (.toString o))))
+
 ;;TODO handle java.lang.Object
 (defn get-ring-app [config]
   (-> (get-app-routes config)
