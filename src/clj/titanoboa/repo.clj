@@ -223,7 +223,7 @@
            false))))
 
 (defn callback-with-retry [f max-retry-count]
-  "Retries function f if it returns false, or until max-retry-count is reached."
+  "Retries function f if it returns false, until it returns true or max-retry-count is reached."
   (doall
     (take-while #(false? (%))
                 (repeat max-retry-count f))))
