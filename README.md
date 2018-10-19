@@ -12,20 +12,12 @@ See also http://titanoboa.io and our [wiki](https://github.com/mikub/titanoboa/w
 
 ## Installation 
 Download the latest release from http://www.titanoboa.io/titanoboa.jar. It is a single jar file.
-Download titanoboa GUI from http://www.titanoboa.io/titanoboa-gui.zip. The GUI is distributed in a form of a zip file. 
 
     curl --remote-name http://www.titanoboa.io/titanoboa.jar
-    curl --remote-name http://www.titanoboa.io/titanoboa-gui.zip
 
 __Note__: _If you are intending on running titanoboa server on java JDK instead of JRE, download a distribution for JDK instead:_
 
     curl --remote-name http://www.titanoboa.io/titanoboa4jdk.jar
-
-Unzip the GUI file. It will create a folder named "public".
-Then merge the folder into the jar file:
-    
-    unzip titanoboa-gui.zip
-    zip -r -g titanoboa.jar public
 
 then execute the jar:
     
@@ -33,21 +25,39 @@ then execute the jar:
 
 In your console you should see bunch of log messages and ultimately you will see
      
-     INFO [main] - Started @2338ms
+     INFO [main] - Started @3238ms
 
-which means the server started successfully. by default the server and the GUI will start on port 3000 so if you are using the GUI you can open http://localhost:3000 in your browser.
+which means the server started successfully. By default the server and will start on port 3000.
 
 Congratulations! You have just started your titanoboa server!
 
-### Prerequisites
-Java 8 JRE or JDK. Almost all of the functionality works on Java 7 and higher, however Java Lambda support has been tested only on Java 8.
-
-### Running server without GUI
+### Running server with GUI
 
 Titanoboa GUI is great place for developing and designing new workflows as well as for managing their execution and monitoring the status of your server(s).
 It is also a great starting point for evaluating and exploring the titanoboa platform.
 
-But since the GUI is free for non-commercial use only, you may want to run titanoboa server only with no GUI. To do so simply skip correspodning steps above and don't download/merge the GUI folder into the titanoboa jar file.
+__The GUI is free for non-commercial use only__, so if you just want to explore titanoboa it is the best place to start:
+
+Download the latest release from http://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa.jar. It is a single jar file, the GUI is already in it.
+
+    curl --remote-name http://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa.jar
+
+__Note__: _If you are intending on running titanoboa server on java JDK instead of JRE, download a distribution for JDK instead:_
+
+    curl --remote-name http://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa4jdk.jar
+
+then execute the jar:
+    
+     java -jar titanoboa.jar
+
+In your console you should see bunch of log messages and ultimately you will see
+     
+     INFO [main] - Started @3478ms
+
+which means the server started successfully. By default the server and the GUI will start on port 3000 so you can open http://localhost:3000 in your browser to access it.
+
+### Prerequisites
+Java 8 JRE or JDK and higher. Almost all of the functionality works on Java 7 and higher, however Java Lambda support has been tested only on Java 8.
 
 ### Building from the repository
 In case you don't want to download distributed release from our web page but to build it from the repository:
