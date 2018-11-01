@@ -10,6 +10,7 @@
 
 (def ^:dynamic *job* {})
 (def ^:dynamic *properties* {})
+(def ^:dynamic *jobdir* nil)
 
 (def java-lambda-factory (LambdaFactory/get))
 
@@ -56,6 +57,7 @@
 (defn run-workload-fn [{:keys [step properties] :as job} &[fn-key]]
   (binding [*ns* (find-ns 'titanoboa.exp)
             *job* job
+            *jobdir* (:jobdir job)
             *properties* properties]
     (try
       (let [fn-key (or fn-key :workload-fn)
