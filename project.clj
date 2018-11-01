@@ -4,7 +4,7 @@
   :license {:name "GNU Affero General Public License"
             :url "https://www.gnu.org/licenses/agpl-3.0.en.html"}
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [pl.joegreen/lambda-from-string "1.6"] ;;Note: if running on JDK use this instead:  [pl.joegreen/lambda-from-string "1.6" :exclusions [org.eclipse.jdt.core.compiler/ecj]]
+                 [pl.joegreen/lambda-from-string "1.6"] ;;Note: if running on JDK use this instead: [pl.joegreen/lambda-from-string "1.6" :exclusions [org.eclipse.jdt.core.compiler/ecj]]
                  [com.stuartsierra/component "0.3.1"]
                  [org.clojure/core.async "0.2.374"]
                  [org.clojure/tools.logging "0.3.1"]
@@ -41,7 +41,8 @@
                  [org.clojure/java.jdbc "0.7.1"]
                  [com.mchange/c3p0 "0.9.5.2"]
                  [honeysql "0.9.1"]
-                 [postgresql/postgresql "9.4.1208-jdbc42-atlassian-hosted"]]
+                 [postgresql/postgresql "9.4.1208-jdbc42-atlassian-hosted"]
+                 [com.draines/postal "2.0.2"]]
 
   :repositories [["atlassian" 	"https://maven.atlassian.com/3rdparty/"]]
 

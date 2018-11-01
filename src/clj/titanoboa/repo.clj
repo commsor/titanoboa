@@ -242,7 +242,7 @@
                                        (case (.name (.eventType event))
                                          "CREATE" (callback-with-retry (fn []
                                                                           (watcher-callback jd-atom (.toString (.path event))))
-                                                                       5)
+                                                                       9)
                                          "OVERFLOW" (log/info "Overflow event registered for repository file " (.toString (.path event)))
                                          nil))))
                         .build)]

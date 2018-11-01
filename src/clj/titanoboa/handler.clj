@@ -173,14 +173,15 @@
       buf)))
 
 (def transit-handlers-encode {titanoboa.exp.Expression exp/transit-write-handler
-                             clojure.lang.Var (transit/write-handler (constantly "s") #(str %))
-                             titanoboa.exp.SerializedVar (transit/write-handler (constantly "s") #(:symbol %))
-                             java.util.GregorianCalendar (transit/write-handler (constantly "m") #(.getTimeInMillis %) #(str (.getTimeInMillis %)))
-                             java.io.File (transit/write-handler (constantly "s") #(.getCanonicalPath %))
-                             java.lang.Exception (transit/write-handler (constantly "s") #(str %)) ;;FIXME - properly serialize stack trace etc.
-                             clojure.lang.Fn (transit/write-handler (constantly "s") #(str %))
-                             clojure.lang.Atom (transit/write-handler (constantly "s") #(str %))
-                             clojure.core.async.impl.channels.ManyToManyChannel (transit/write-handler (constantly "s") #(str %))})
+                              clojure.lang.Var (transit/write-handler (constantly "s") #(str %))
+                              titanoboa.exp.SerializedVar (transit/write-handler (constantly "s") #(:symbol %))
+                              java.util.GregorianCalendar (transit/write-handler (constantly "m") #(.getTimeInMillis %) #(str (.getTimeInMillis %)))
+                              org.joda.time.DateTime (transit/write-handler (constantly "m") #(-> % .toDate .getTime) #(-> % .toDate .getTime .toString))
+                              java.io.File (transit/write-handler (constantly "s") #(.getCanonicalPath %))
+                              java.lang.Exception (transit/write-handler (constantly "s") #(str %)) ;;FIXME - properly serialize stack trace etc.
+                              clojure.lang.Fn (transit/write-handler (constantly "s") #(str %))
+                              clojure.lang.Atom (transit/write-handler (constantly "s") #(str %))
+                              clojure.core.async.impl.channels.ManyToManyChannel (transit/write-handler (constantly "s") #(str %))})
 
 (def transit-handlers-decode {"titanoboa.exp.Expression" exp/transit-read-handler})
 
@@ -205,6 +206,3 @@
       wrap-params
       (auth/wrap-auth-cookie "SoSecret12345678")))
 
-#_(def app
-  (let [handler (wrap-defaults #'routes site-defaults)]
-    (if (env :dev) (-> handler wrap-exceptions wrap-reload) handler)))

@@ -13,9 +13,11 @@
             [titanoboa.database :as db]
             [com.stuartsierra.component :as component]
             [clojure.tools.logging :as log]
-            [titanoboa.system.local])
+            [titanoboa.system.local]
+            [me.raynes.fs :as fs])
   (:import [org.eclipse.jetty.server
-            Server]))
+            Server]
+           [java.io File]))
 
 (def ^Server server nil)
 
@@ -26,6 +28,29 @@
   (filter #(-> %
                str
                (.startsWith s)) (ns.find/find-namespaces (cp/classpath))))
+
+(defn extract-zip-resource [resource unzip-to]
+  (with-open [stream (-> (ClassLoader/getSystemResourceAsStream resource)
+                         (java.util.zip.ZipInputStream.))]
+    (loop [entry (.getNextEntry stream)]
+      (if entry
+        (let [savePath (str unzip-to java.io.File/separatorChar (.getName entry))
+              saveFile (java.io.File. savePath)]
+          (if (.isDirectory entry)
+            (if-not (.exists saveFile)
+              (.mkdirs saveFile))
+            (let [parentDir (java.io.File. (.substring savePath 0 (.lastIndexOf savePath (int java.io.File/separatorChar))))]
+              (if-not (.exists parentDir) (.mkdirs parentDir))
+              (clojure.java.io/copy stream saveFile)))
+          (recur (.getNextEntry stream)))))))
+
+(defn init-step-repo [path]
+  (when-not (fs/exists? path)
+    (-> path
+        File.
+        .mkdirs)
+    (when (io/resource "steps-repo.zip")
+      (extract-zip-resource "steps-repo.zip" path))))
 
 (defn require-ns [ns]
   (try
@@ -47,9 +72,12 @@
 ;;TODO also size needed will depend on whether or not AWS/SQS is used, as the polling and acknowledgement and alt operations all use threading macro
 (System/setProperty "clojure.core.async.pool-size" "24")
 
-(defn get-default-config [& [host]] {:host (or host (System/getProperty "boa.server.host") (.getHostAddress (java.net.InetAddress/getLocalHost)))
-                     :jetty {:port 3000
-                             :join? false}})
+(defn get-default-config [& [host]]
+  {:host (or host (System/getProperty "boa.server.host") (.getHostAddress (java.net.InetAddress/getLocalHost)))
+   :jetty {:port 3000
+           :join? false}
+   :steps-repo-path "steps-repo"
+   :jobs-repo-path "repo"})
 
 (def server-config {})
 
@@ -102,6 +130,7 @@
   (require-extensions)
   (load-dependencies!)
   (init-config! cfg host)
+  (init-step-repo (:steps-repo-path server-config))
   (system/run-systems-onstartup! (:systems-catalogue server-config) server-config)
   (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
   (alter-var-root #'server

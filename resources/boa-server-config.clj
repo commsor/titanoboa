@@ -6,9 +6,7 @@
                                               {:core  {:system-def #'titanoboa.system.local/local-core-system
                                                        :worker-def #'titanoboa.system.local/local-worker-system
                                                        :autostart  true}}
-                             :jobs-repo-path "dev-resources/repo/"
-                             :steps-repo-path "dev-resources/step-repo/"
-                             :job-folder-path "dev-resources/job-folders/"
+                             :job-folder-path "job-folders/"
                              :enable-cluster false
                              :jetty {:join? false
                                      :port 3000}
