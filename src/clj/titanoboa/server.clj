@@ -44,7 +44,7 @@
               (clojure.java.io/copy stream saveFile)))
           (recur (.getNextEntry stream)))))))
 
-(defn init-step-repo [path]
+(defn init-step-repo! [path]
   (when-not (fs/exists? path)
     (-> path
         File.
@@ -91,7 +91,13 @@
 (defn load-dependencies! []
   (if-let [config-path (deps/get-deps-path-property)]
     (deps/start-deps-watch! config-path)
-    (log/warn "No external dependencies configuration found. No dependencies will be loaded!")))
+    (if (io/resource "ext-dependencies.clj")
+      (try
+        (log/info "Initialization: Loading external dependencies from read-only file on classpath...")
+        (deps/load-ext-dependencies (read-string (slurp (io/resource "ext-dependencies.clj"))))
+        (catch Exception e
+          (log/error e "Error loading external dependencies!")))
+      (log/warn "No external dependencies configuration found. No dependencies will be loaded!"))))
 
 (defn init-config! [& [cfg host]]
   (if cfg
@@ -112,6 +118,9 @@
 ;;TODO revise how catalogue is being stored/accessed? Seems it is inevitable to store it in some atom or var since it needs to be accessed arbitrarily from different places?
 ;;(system/set-system-catalogue! (:systems-catalogue server-config))
 
+(defn init-job-folder! [path]
+  (when-not (fs/directory? path) (fs/mkdirs path)))
+
 (defn shutdown! []
   (println "Shutting down...")
   (log/info "Shutting down...")
@@ -130,7 +139,8 @@
   (require-extensions)
   (load-dependencies!)
   (init-config! cfg host)
-  (init-step-repo (:steps-repo-path server-config))
+  (init-job-folder!  (:job-folder-path server-config))
+  (init-step-repo! (:steps-repo-path server-config))
   (system/run-systems-onstartup! (:systems-catalogue server-config) server-config)
   (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
   (alter-var-root #'server
