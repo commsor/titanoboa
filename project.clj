@@ -25,7 +25,7 @@
                  [ring-server "0.4.0"]
                  [ring "1.6.3"]
                  [ring/ring-defaults "0.1.5"]
-                 [ring-middleware-format "0.7.0" :exclusions [com.cognitect/transit-clj]]
+                 [ring-middleware-format "0.7.2" :exclusions [com.cognitect/transit-clj]]
                  [com.cognitect/transit-clj "0.8.290"]
                  [com.taoensso/timbre "4.7.0"]
                  [compojure "1.5.2"]
