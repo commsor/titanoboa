@@ -155,7 +155,7 @@
     (init-first-step job)
     (init-step job)))
 
-(defn- normalize-result [step-result]
+(defn normalize-result [step-result]
   (if (string? step-result) (clojure.string/lower-case step-result) step-result))
 
 #_(defn find-next-step [current-step step-result]
@@ -170,7 +170,7 @@
       (get normalized-map normalized-result (get normalized-map "*")))))
 
 ;;TODO add support for expressions - jast pas on steps to eval-properties fn
-(defn- find-matching-steps [steps r]
+(defn find-matching-steps [steps r]
   (let [filter-fn (if (= r "error")
                     #(= r (first %))
                     #(or (= r (first %))
@@ -224,7 +224,7 @@
                 (swap! processed-id-tuples conj tuple)
                 (swap! processed-indexes conj idx)
                 (recur (async/<!! response-ch))))))
-        (let [aggregator-callback-ch (channel/mq-chan aggregator-q-name false) ;;FIXME - USE POLYMORPHISM to fix hardcoded type of channel - should be based on the given system (async channel vs RMQ queue etc.)!!!
+        (let [aggregator-callback-ch (channel/mq-chan aggregator-q-name false)
               _ (log/info "Instantiated aggregator-callback channel " aggregator-callback-ch)
               dispatched-indexes (-> (map-indexed (fn [idx i] ;;TODO for large number of jobs make this multithreaded
                                                     (when-not (contains? @processed-indexes idx)
@@ -322,7 +322,7 @@
                            :else (throw (IllegalStateException. "Unexpected channel responded to blocking alt!!"))))
                        :priority true))]
       (thread
-        (channel/delete-mq-chan aggregator-callback-ch) ;;FIXME abstract this and use polymorphism
+        (channel/delete-mq-chan aggregator-callback-ch)
         (channel/delete-mq-chan aggregator-notif-ch)
         (when (and standalone-system? terminate-standalone? sys-key)
           (channel/with-mq-session (channel/current-session)
@@ -331,7 +331,7 @@
           (let [stopped-system (system/stop-system! sys-key jobid)]
             (Thread/sleep 1000)
             (system/cleanup-system! stopped-system))))
-      end-result)
+      {:result end-result :reduce-step {:map-step-id map-step-id :map-step-id-tuples @map-step-id-tuples}})
     ;;TODO remove given map-step-id from the map-steps map and pass it on? - so as same map step cannot be processed by two separate reduce steps?
   ;;FIXME test if works when used on undistributed system with async channels!!!
 )
@@ -366,7 +366,7 @@
   (when (seq coll)
     (if-not (nil? (pred (first coll))) (pred (first coll)) (recur pred (next coll)))))
 
-(defn process-step [{:keys [state step step-start start map-steps thread-stack step-retries] :as job} node-id]
+(defn process-step [{:keys [state step step-start start map-steps reduce-steps thread-stack step-retries] :as job} node-id]
   "Processes current step by evaluating and calling step's workload function. Returns a touple of commit callback channel (if applicable) and the updated step map.
   The commit callback channel is used only if one of the step's threads is still running upon steps completion
   - the channel will be used to defer current job message's receipt acknowledgement."
@@ -387,6 +387,7 @@
                            (:properties result-map)
                            (dissoc result-map :exit :code :return-code :exit-code :map-step :commit-callback-ch :aggregator-notif-ch :error :data)))
         new-map-step (:map-step result-map)
+        new-reduce-step (:reduce-step result-map)
         commit-callback-ch (:commit-callback-ch result-map)
         aggregator-notif-ch (:aggregator-notif-ch result-map)
         error? (:error result-map)
@@ -394,6 +395,7 @@
         message-end (str "Step [" (:id step) "] finshed with result ["result"]\n")
         _ (log/debug message-end)
         next-step (when-not (dispatch4join? job) (find-next-step step result))
+        _ (log/debug "Next step is " next-step)
         [retrying? step-retries] (if (and error? (not next-step))
                                    (assess4retry step step-retries)
                                    [false step-retries])
@@ -419,6 +421,7 @@
                        :aggregator-notif-ch aggregator-notif-ch
                        :properties (merge (:properties job) returned-props)
                        :map-steps (if new-map-step (assoc map-steps step-id new-map-step) map-steps)
+                       :reduce-steps (if new-reduce-step (assoc reduce-steps step-id new-reduce-step) reduce-steps)
                        :step-retries step-retries
                        :history (conj (get job :history) history-map)
                        :end (when finished? step-end)
