@@ -5,19 +5,14 @@
              [taoensso.nippy :as nippy]
              [clojure.tools.logging :as log]))
 
-;;TODO create a protocol for channel (if doesnt already exist), identify which functions are generic and and move the rest as a concrete RMQ implementation under titanoboa.system.rmq.channel
-;;TODO then implement support for ActiveMQ / HornetMQ / WebSphereMQ
 (def ^{:dynamic true} *mq-session* nil)
 
 (defn current-session
   "If used within (with-connection conn ...),
    returns the currently bound connection."
   []
-  (if *mq-session*
-    *mq-session*
-    nil
-    #_(throw (IllegalStateException.
-      "No current session. Use (with-mq-session conn ...) to bind a session."))))
+  (when *mq-session*
+    *mq-session*))
 
 (defmacro with-mq-session
   "Binds session to a value you can retrieve
@@ -50,11 +45,6 @@
   (nack! [this message] "Negative acknowledgement aka rollback."))
 
 
-
-;;TODO - if extensibility is required then use records instead of multimethods
-;;and specify sync<!! and async<!! atc. methods as part of these records
-;;instead of core.async/<!! we would then call my async<!! on such record (it would be neede to implement such protocol even for core.async)
-
 (defmulti poll!
   "Synchronous poll operation.
   Reads from given channel or immediatelly returns nil if the channel is empty."
@@ -64,31 +54,6 @@
   [ch]
   (async/poll! ch))
 
-
-
-;;multithreaded bocking/polling alt could also be handled like this:
-#_(let [a (atom false)
-      lock (Object.)
-      abort-chan (async/chan)]
-  (async/thread (do (rmq-blocking-get rch abort-chan)
-                  (locking lock
-                    (if-not @a
-                      (do
-                        (swap! a not)
-                        (println "thread 1 - Finished 1st")
-                        (async/close! abort-chan))
-                      (println "thread 1 - Finished 2nd")))))
-  (async/thread (do (rmq-blocking-get cch abort-chan)
-                  (locking lock
-                    (if-not @a
-                      (do
-                        (println "thread 2 - Finished 1st")
-                        (swap! a not)
-                        (async/close! abort-chan))
-                      (println "thread 2 - Finished 2nd"))))))
-
-;;TODO implement non polling JMS alt (i.e. multiple non-polling threads in wait)
-;;TODO allow for different providers (JMS, SQS, AMPQ) to be used in single alt
 (defmulti alts!!
   "Enables calling alts!! on a mix of core.async and RabbitMQ channels.
   If only core.async channels are provided it calls the native core.async alts!! function on them.
@@ -174,25 +139,3 @@
     (>!! stop-chan :stop)
     (async/close! stop-chan)
     (assoc this :stop-chan nil)))
-
-#_(defrecord AsyncChanComponent [size channel]
-  component/Lifecycle
- (start [this]
-   (assoc this :channel (async/chan size)))
- (stop [this]
-   (async/close! channel)))
-
-
-;;(langohr.exchange/declare (current-session) name "fanout" {:durable true})
-#_(nippy/thaw (nippy/freeze
-              (merge-with merge
-                          (into {} (titanoboa.system/live-systems)) titanoboa.handler/systems-catalogue)))
-
-#_(nippy/set-freeze-fallback!
-  (fn [data-output x]
-    (let [s (str x)
-          ba (.getBytes s "UTF-8")
-          len (alength ba)]
-      (.writeByte data-output (byte 13))
-      (.writeInt data-output (int len))
-      (.write data-output ba 0 len))))
