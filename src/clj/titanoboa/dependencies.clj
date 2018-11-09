@@ -69,8 +69,7 @@
                                [idx (get itm 1)])))
              first)))
 
-;;FIXME rewrite this to also instantiate a separate RT for each classloader at the end - and then run all requires/imports in the RT (these should come also in JD along with dependencies) - OTHERWISE THIS WONT WORK!
-;;TODO add support for maven repositories
+;;TODO rewrite this to also instantiate a separate RT for each classloader at the end - and then run all requires/imports in the RT (these should come also in JD along with dependencies) - OTHERWISE THIS WONT WORK!
 (defn add-dependencies! [coordinates]
   "Resolves all dependencies of provided dependency coordinates. Then iterates through the classloader-registry and uses first classloader possible to add these dependencies.
   If no classloader could be used a new one is created. Also corresponding dependencies map is updated in classloader-registry.
@@ -150,7 +149,7 @@
       (log/info "Importing external classes: " i)
       (when (sequential? i) (mapv #(import %) i)))))
 
- ;;TODO there is no locking of the deps file!
+ ;;TODO there might be need for retry in case the file stays locked for longer?
 (defrecord DepsWatcherComponent [deps-file-path stop-callback-fn last-content-atom]
   component/Lifecycle
   (start [this]
@@ -240,66 +239,3 @@
         (not stale?)
       (finally
         (release-lock! raf l))))))
-
-#_(defn test0 []
-  (let [original-cl (.getContextClassLoader (Thread/currentThread))
-        new-cl (get-new-classloader)]
-    (log/info "*use-context-classloader* is " *use-context-classloader*) ;;@clojure.lang.Compiler/LOADER
-    (log/info "@clojure.lang.Compiler/LOADER is " @clojure.lang.Compiler/LOADER)
-    (log/info "current context classloader is  " (.getContextClassLoader (Thread/currentThread)))
-    (log/info "loading postal into cl " new-cl)
-    (log/info "@clojure.lang.Compiler/LOADER is " @clojure.lang.Compiler/LOADER)
-    (cemerick.pomegranate/add-dependencies :coordinates [['com.draines/postal "2.0.2"]]
-                                           :classloader new-cl)
-    (with-classloader new-cl
-                      (clojure.lang.Var/pushThreadBindings {clojure.lang.Compiler/LOADER new-cl})
-                      (.setContextClassLoader (Thread/currentThread) new-cl)
-                      (log/info "current context classloader is  " (.getContextClassLoader (Thread/currentThread)))
-                      (require 'postal.core)
-                      [new-cl original-cl])))
-
-#_(defn test1 []
-  (binding [clojure.core/*use-context-classloader* true]
-    (let [original-cl (.getContextClassLoader (Thread/currentThread))
-          new-cl (get-new-classloader)]
-      (try
-        (log/info "*use-context-classloader* is " *use-context-classloader*) ;;@clojure.lang.Compiler/LOADER
-        (log/info "@clojure.lang.Compiler/LOADER is " @clojure.lang.Compiler/LOADER)
-        (log/info "current context classloader is  " (.getContextClassLoader (Thread/currentThread)))
-        (log/info "loading postal into cl " new-cl)
-        (log/info "@clojure.lang.Compiler/LOADER is " @clojure.lang.Compiler/LOADER)
-        (cemerick.pomegranate/add-dependencies :coordinates [['com.draines/postal "2.0.2"]]
-                                               :classloader new-cl)
-        (clojure.lang.Var/pushThreadBindings {clojure.lang.Compiler/LOADER new-cl})
-        (.setContextClassLoader (Thread/currentThread) new-cl)
-        (log/info "current context classloader is  " (.getContextClassLoader (Thread/currentThread)))
-        (require 'postal.core)
-        [new-cl original-cl]
-        (finally (.setContextClassLoader (Thread/currentThread) original-cl)
-                 (clojure.lang.Var/popThreadBindings))))))
-
-#_(defn test2 []
-  (binding [clojure.core/*use-context-classloader* true]
-    (let [original-cl (.getContextClassLoader (Thread/currentThread))
-          new-cl (get-new-classloader)]
-      (try
-        (log/info "*use-context-classloader* is " *use-context-classloader*) ;;@clojure.lang.Compiler/LOADER
-        (log/info "@clojure.lang.Compiler/LOADER is " @clojure.lang.Compiler/LOADER)
-        (log/info "current context classloader is  " (.getContextClassLoader (Thread/currentThread)))
-        (log/info "loading postal into cl " new-cl)
-        (log/info "@clojure.lang.Compiler/LOADER is " @clojure.lang.Compiler/LOADER)
-        (cemerick.pomegranate/add-dependencies :coordinates [['com.draines/postal "2.0.2"]]
-                                               :classloader new-cl)
-        (.setContextClassLoader (Thread/currentThread) new-cl)
-        (log/info "current context classloader is  " (.getContextClassLoader (Thread/currentThread)))
-        (require 'postal.core)
-        [new-cl original-cl]
-        (finally (.setContextClassLoader (Thread/currentThread) original-cl))))))
-
-#_{:coordinates [[com.draines/postal "2.0.2"]
-               [com.github.kyleburton/clj-xpath "1.4.10"]]
- :require [[postal.core]
-           [clj-xpath.core]]
- :import nil
- :repositories {"central" "https://repo1.maven.org/maven2/"
-                "clojars" "https://clojars.org/repo"}}
