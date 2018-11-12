@@ -89,15 +89,9 @@
           (str (:name (meta v)))))
 
 (defn load-dependencies! []
-  (if-let [config-path (deps/get-deps-path-property)]
-    (deps/start-deps-watch! config-path)
-    (if (io/resource "ext-dependencies.clj")
-      (try
-        (log/info "Initialization: Loading external dependencies from read-only file on classpath...")
-        (deps/load-ext-dependencies (read-string (slurp (io/resource "ext-dependencies.clj"))))
-        (catch Exception e
-          (log/error e "Error loading external dependencies!")))
-      (log/warn "No external dependencies configuration found. No dependencies will be loaded!"))))
+  (when-not (deps/get-deps-path-property)
+    (deps/init-dependency-file!))
+  (deps/start-deps-watch! (deps/get-deps-path-property)))
 
 (defn init-config! [& [cfg host]]
   (if cfg

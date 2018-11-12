@@ -4,10 +4,30 @@
             [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
             [clojure-watch.core :refer [start-watch]]
-            [me.raynes.fs :as fs])
+            [me.raynes.fs :as fs]
+            [clojure.java.io :as io])
   (:import (java.io File FileOutputStream)))
 
 (def dependencies-path-property "boa.server.dependencies.path")
+
+(def empty-deps {:coordinates []
+                 :require []
+                 :import nil
+                 :repositories {"central" "https://repo1.maven.org/maven2/"
+                                "clojars" "https://clojars.org/repo"}})
+
+(defn init-dependency-file! []
+  (let [deps-file (File. "ext-dependencies.clj")]
+    (if (io/resource "ext-dependencies.clj")
+      (try
+        (log/info "Initialization: Copying external dependencies from read-only file on classpath...")
+        (spit deps-file (slurp (io/resource "ext-dependencies.clj")))
+        (System/setProperty dependencies-path-property (.getAbsolutePath deps-file))
+        (catch Exception e
+          (log/error e "Error loading external dependencies from file on classpath!")))
+      (do (log/warn "No external dependencies configuration found. creating empty dependencies file...")
+          (spit deps-file (slurp (str empty-deps)))
+          (System/setProperty dependencies-path-property (.getAbsolutePath deps-file))))))
 
 (defn get-deps-path-property []
   (System/getProperty dependencies-path-property))
