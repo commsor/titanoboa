@@ -1,5 +1,5 @@
 (defproject titanoboa "0.1.0-SNAPSHOT"
-  :description "titanoboa.io is fully distributed, highly scalable and fault tolerant FaaS and workflow orchestration platform"
+  :description "titanoboa.io is fully distributed, highly scalable and fault tolerant workflow orchestration platform"
   :url "http://titanoboa.io"
   :license {:name "GNU Affero General Public License"
             :url "https://www.gnu.org/licenses/agpl-3.0.en.html"}
