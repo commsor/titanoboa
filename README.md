@@ -61,6 +61,13 @@ Now you can go ahead and try to create a [sample workflow](https://github.com/mi
 ### Prerequisites
 Java 8 JRE or JDK and higher. Almost all of the functionality works on Java 7 and higher, however Java Lambda support has been tested only on Java 8.
 
+### Server Configuration
+Server configuration and external dependencies file can be specified by system properties `boa.server.config.path` and `boa.server.dependencies.path`:
+
+     java -Dboa.server.config.path=boa_server_config_local.clj -Dboa.server.dependencies.path=ext-dependencies.clj -jar titanoboa.jar
+     
+See [Server configuration wiki](https://github.com/mikub/titanoboa/wiki/Server-Configuration) for more details.
+
 ### Building from the repository
 In case you don't want to download distributed release from our web page but to build it from the repository:
 Titanoboa uses leiningen for dependency management, so if you don't have it download it from https://leiningen.org/ and follow its installation instructions.
@@ -86,13 +93,6 @@ then merge GUI's _public_ folder into the uberjar:
 then execute the jar:
     
      java -jar titanoboa.jar
-
-### Server Configuration
-Server configuration and external dependencies file can be specified by system properties `boa.server.config.path` and `boa.server.dependencies.path`:
-
-     java -Dboa.server.config.path=boa_server_config_local.clj -Dboa.server.dependencies.path=ext-dependencies.clj -jar titanoboa.jar
-     
-See [Server configuration wiki](https://github.com/mikub/titanoboa/wiki/Server-Configuration) for more details.
 
 ## License
 Copyright © Miro Kubicek
