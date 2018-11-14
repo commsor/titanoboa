@@ -6,18 +6,18 @@ You can run it on-premises or in a cloud.
 
 ![alt Logo](https://s3.eu-central-1.amazonaws.com/www.titanoboa.io/tb-logo-dark-nosubtitle.svg)
 
-See also http://titanoboa.io and our [wiki](https://github.com/mikub/titanoboa/wiki) 
+See also [titanoboa.io](https://titanoboa.io) and our [wiki](https://github.com/mikub/titanoboa/wiki) 
 
 <img src="http://www.titanoboa.io/sample-graph.gif" width="500"/>
 
 ## Installation 
-Download the latest release from http://www.titanoboa.io/titanoboa.jar. It is a single jar file.
+Download the latest release from https://www.titanoboa.io/titanoboa.jar. It is a single jar file.
 
-    curl --remote-name http://www.titanoboa.io/titanoboa.jar
+    curl --remote-name https://www.titanoboa.io/titanoboa.jar
 
 __Note__: _If you are intending on running titanoboa server on java JDK instead of JRE, download a distribution for JDK instead:_
 
-    curl --remote-name http://www.titanoboa.io/titanoboa4jdk.jar
+    curl --remote-name https://www.titanoboa.io/titanoboa4jdk.jar
 
 then execute the jar:
     
@@ -38,13 +38,13 @@ It is also a great starting point for evaluating and exploring the titanoboa pla
 
 __The GUI is free for non-commercial use only__, so if you just want to explore titanoboa it is the best place to start:
 
-Download the latest release from http://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa.jar. It is a single jar file, the GUI is already in it.
+Download the latest release from https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa.jar. It is a single jar file, the GUI is already in it.
 
-    curl --remote-name http://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa.jar
+    curl --remote-name https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa.jar
 
 __Note__: _If you are intending on running titanoboa server on java JDK instead of JRE, download a distribution for JDK instead:_
 
-    curl --remote-name http://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa4jdk.jar
+    curl --remote-name https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa4jdk.jar
 
 then execute the jar:
     
