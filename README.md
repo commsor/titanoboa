@@ -10,6 +10,20 @@ See also [titanoboa.io](https://titanoboa.io) and our [wiki](https://github.com/
 
 <img src="http://www.titanoboa.io/sample-graph.gif" width="500"/>
 
+## Motivation
+Titanoboa has been created with aim to create a workflow platform, that would support all the usual features of complex workflow engines and majority of enterprise integration patterns including:
+* sequential and/or **parallel** step execution
+* configurable step **retry** upon error and advanced customizable error handling
+* advanced conditional flow
+* potentially **cyclic** workflow graphs
+* **splitter** and **aggregator** (aka map/reduce) patterns which allows for processing of larger data sets
+* fully **transactional** nature that assures that all steps are executed even in case of a failover
+
+In addition to this titanoboa also strives to honor immutability and functional programming principles. This enables it to be fully **distributed** and to be **highly available** with no central master server or database. This also helps lift performance limitations and thus titanoboa can be suitable for not only batch processing, but also for performance critical workflows.
+
+Titanoboa's [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI) can be used not only to monitor workflow jobs and server configuration, but provides an in-build IDE with workflow visualisation, properties editor and a repl so as users can rapidly test-develop now workflows directly in there.
+
+
 ## Installation 
 Download the latest release from https://www.titanoboa.io/titanoboa.jar. It is a single jar file.
 
