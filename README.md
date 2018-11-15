@@ -21,7 +21,7 @@ Titanoboa has been created with aim to create a workflow platform, that would su
 
 In addition to this titanoboa also strives to honor **immutability and functional programming principles**. This enables it to be fully **distributed** and to be **highly available** with no central master server or database. This also helps lift performance limitations and thus titanoboa can be suitable for not only batch processing, but also for performance critical workflows.
 
-Titanoboa's [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI) can be used not only to monitor workflow jobs and server configuration, but provides an in-build IDE with workflow visualisation, properties editor and a repl so as users can rapidly test-develop now workflows directly in there.
+Titanoboa's [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI) can be used not only to monitor workflow jobs and server configuration, but provides an in-build IDE with workflow visualisation, properties editor and a repl so as users can rapidly test-develop new workflows directly in there.
 
 
 ## Installation 
