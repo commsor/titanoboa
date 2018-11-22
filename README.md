@@ -73,7 +73,7 @@ which means the server started successfully. By default the server and the GUI w
 Now you can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
 ### Prerequisites
-Java 8 JRE or JDK and higher. Almost all of the functionality works on Java 7 and higher, however Java Lambda support has been tested only on Java 8.
+Java 8 JRE or JDK and higher. Almost all of the functionality works on Java 8 and higher, however Java Lambda support has been tested only on Java 8.
 
 ### Server Configuration
 Server configuration and external dependencies file can be specified by system properties `boa.server.config.path` and `boa.server.dependencies.path`:
