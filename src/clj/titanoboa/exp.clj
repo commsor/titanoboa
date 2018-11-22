@@ -68,7 +68,7 @@
       (let [fn-key (or fn-key :workload-fn)
             workload-fn (get step fn-key)]
         (case (:type workload-fn)
-                "java" (do (when-not (string? (:value workload-fn)) (throw java.lang.IllegalStateException "Value of java lambda expression must be String!"))
+                "java" (do (when-not (string? (:value workload-fn)) (throw (java.lang.IllegalStateException. "Value of java lambda expression must be String!")))
                          (-> java-lambda-factory
                            (.createLambdaUnchecked (:value workload-fn) (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, clojure.lang.IPersistentMap>"))
                            (.apply properties)))
