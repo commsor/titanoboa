@@ -1,18 +1,21 @@
 (ns api-test
    (:use clojure.test)
-   (:require [titanoboa.server :as server]
-             [clj-http.client :as client :refer [request]]
-             [clj-http.util :as http-util]
-             [me.raynes.fs :as fs]
-             [titanoboa.handler :as handler]))
+  (:require [titanoboa.server :as server]
+            [clj-http.client :as client :refer [request]]
+            [clj-http.util :as http-util]
+            [me.raynes.fs :as fs]
+            [titanoboa.handler :as handler]
+            [titanoboa.exp]))
 
+(def transit-opts
+  "Transit read and write options."
+  {:encode {:handlers {titanoboa.exp.Expression titanoboa.exp/transit-write-handler}}
+   :decode {:handlers {"titanoboa.exp.Expression" titanoboa.exp/transit-read-handler}}})
 
 (def transit-request-stub {:throw-exceptions false
                            :content-type :transit+json
                            :as :transit+json
-                           :transit-opts
-                                         {:encode {:handlers handler/transit-handlers-encode}
-                                          :decode {:handlers handler/transit-handlers-decode}}})
+                           :transit-opts transit-opts})
 (def jd-name "test")
 (def test-repo-path "dev-resources/repo-test/")
 (def server-config {:systems-catalogue
@@ -39,7 +42,7 @@
               :type nil
               :properties {:name "World"}
               :steps [{:id "step1" :type :custom :supertype :tasklet :next [[false "step2"][true "step3"]]
-                       :workload-fn #titanoboa.exp.Expression{:value "(fn [p] \n  {:message (str \"Hello \" (:name p)) :return-code (nil? (:name p))})", :type nil}
+                       :workload-fn (titanoboa.exp/map->Expression {:value "(fn [p] \n  {:message (str \"Hello \" (:name p)) :return-code (nil? (:name p))})", :type nil})
                        :properties {}}
                       {:id "step2" :type :custom :supertype :tasklet
                        :workload-fn #titanoboa.exp.Expression{:value "(fn [p]\n  {:message (str (:message p) \"!\")})", :type nil}
@@ -246,7 +249,9 @@
   ;; test job definitions repository API
   (create-job-definition)
   (repo-exists)
+
   (create-job)
+
   (update-job-definition)
   (list-job-definitions)
   (get-job-definitions)

@@ -13,7 +13,6 @@
             [clojure.java.io :as io]
             [hiccup.core :refer [html]]
             [hiccup.page :refer [include-js include-css]]
-            [prone.middleware :refer [wrap-exceptions]]
             [titanoboa.util :as util]
             [titanoboa.repo :as repo :refer [keyify]]
             [titanoboa.exp :as exp]
@@ -30,21 +29,10 @@
   (:import [java.net URI]
            [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
-#_(def broadcast (channel/map->SystemStateBroadcast {:session (:session session)
-                                           :exchange-name "heartbeat"
-                                           :node-id (.getHostAddress (java.net.InetAddress/getLocalHost))
-                                           :state-fn (fn [] {:systems (merge-with merge (into {} (system/live-systems)) systems-catalogue)
-                                                             :jobs (api/get-jobs-states)})
-                                           :broadcast-interval 5000
-                                           :msg-exipre "5000"}))
-
 (defn read-n-lines [n filename]
   (with-open [rdr (io/reader filename)]
     (doall (take-last n (line-seq rdr)))))
 
-#_(resolve  (:a (clojure.edn/read-string "{:a titanoboa.system.rabbitmq/distributed-core-system}")))
-#_((resolve  (clojure.edn/read-string "titanoboa.system.rabbitmq/distributed-core-system")) {})
-;; /cluster/nodes/127.0.1.1:3000/systems/:core
 ;;TODO consider instead of passing config as tehis fnction's parameter injecting necessary config directly into request via additional ring middleware?
 (defn get-secured-routes [{:keys [steps-repo-path jobs-repo-path systems-catalogue archive-ds-ks node-id log-file-path] :or {log-file-path "titanoboa.log"} :as config}]
   (routes
@@ -138,6 +126,15 @@
     ;;    (log/info (:params request))
     (handler request)))
 
+(defn fallback-exception-middleware
+  [handler]
+  (fn [request]
+    (try
+      (handler request)
+      (catch Exception e
+        (log/error e)
+        {:status 500 :body {:message (str "Something isn't quite right... \n " e)}}))))
+
 
 (defn get-app-routes [{:keys [auth? auth-conf] :as config}]
   (if auth?
@@ -145,16 +142,20 @@
       (-> (get-public-routes config)
           simple-logging-middleware
           (auth/wrap-auth-token (:pubkey auth-conf))
-          simple-logging-middleware)
+          simple-logging-middleware
+          fallback-exception-middleware)
       (-> (get-secured-routes config)
           auth/wrap-authentication
           simple-logging-middleware
+          fallback-exception-middleware
           (auth/wrap-auth-token (:pubkey auth-conf))))
     (routes
       (-> (get-public-routes config)
-          simple-logging-middleware)
+          simple-logging-middleware
+          fallback-exception-middleware)
       (-> (get-secured-routes config)
-          simple-logging-middleware))))
+          simple-logging-middleware
+          fallback-exception-middleware))))
 
 (defn prepare-cookies
   "Removes the domain and secure keys from cookies map.
@@ -174,7 +175,7 @@
 
 (def transit-handlers-encode {titanoboa.exp.Expression exp/transit-write-handler
                               clojure.lang.Var (transit/write-handler (constantly "s") #(str %))
-                              titanoboa.exp.SerializedVar (transit/write-handler (constantly "s") #(:symbol %))
+                              titanoboa.channel.SerializedVar (transit/write-handler (constantly "s") #(:symbol %))
                               java.util.GregorianCalendar (transit/write-handler (constantly "m") #(.getTimeInMillis %) #(str (.getTimeInMillis %)))
                               org.joda.time.DateTime (transit/write-handler (constantly "m") #(-> % .toDate .getTime) #(-> % .toDate .getTime .toString))
                               java.io.File (transit/write-handler (constantly "s") #(.getCanonicalPath %))

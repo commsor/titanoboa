@@ -139,3 +139,5 @@
     (>!! stop-chan :stop)
     (async/close! stop-chan)
     (assoc this :stop-chan nil)))
+
+(defrecord SerializedVar [symbol]) ;; TODO add node-id?

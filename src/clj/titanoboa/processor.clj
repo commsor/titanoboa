@@ -177,7 +177,7 @@
                          (= "*" (first %))
                          (= :* (first %))
                          #_(and (exp/expression? (first %))
-                              (true? (exp/eval-quote (first %))))))]
+                                (true? (exp/eval-property (first %))))))]
     (->> steps
       (filter filter-fn)
       (mapv second))))
@@ -253,7 +253,7 @@
           _ (assert map-step "No matching map step found for a reduce step." )
           {:keys [dispatched-indexes aggregator-notif-ch aggregator-callback-ch standalone-system? sys-key]} map-step
           dispatched-count (count dispatched-indexes)
-          workload-fn (exp/eval-quote (get step :workload-fn))
+          workload-fn (exp/eval-property (get step :workload-fn))
           map-step-id-log (java.io.File. jobdir (str step-id ".reduce.notif"))
           map-step-id-tuples (if-not (.exists map-step-id-log) (atom nil) (atom (read-string (slurp map-step-id-log))))
           processed-indexes (atom #{})

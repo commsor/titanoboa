@@ -12,7 +12,6 @@
             [titanoboa.exp :as exp]
             [titanoboa.dependencies :as deps]
             [clojure.tools.logging :as log]
-            #_[clojure-watch.core :refer [start-watch]]
             [com.stuartsierra.component :as component])
   (:import [io.methvin.watcher DirectoryWatcher DirectoryChangeEvent DirectoryChangeListener DirectoryChangeEvent$EventType]))
 
