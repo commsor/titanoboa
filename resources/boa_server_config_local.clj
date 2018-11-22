@@ -23,5 +23,7 @@
                                                :finished-jobs-chan archival-queue-local}
                                               :archival-system
                                               {:jdbc-url "jdbc:postgresql://localhost:5432/mydb?currentSchema=titanoboa"
+                                               :user "postgres"
+                                               :password "postgres"
                                                :finished-jobs-chan archival-queue-local}}}))
 
