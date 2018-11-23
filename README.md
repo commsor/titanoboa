@@ -272,8 +272,19 @@ Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
  :node-id "localhost",
  :next-step nil,
  :end #inst"2018-11-23T07:35:34.219-00:00"}
-
 ```
+
+When you are done testing you may want to stop the system:
+```clojure
+(titanoboa.system/stop-all-systems!)
+
+ INFO [nREPL-worker-3] - Stopping all workers for system :core-local
+ INFO [nREPL-worker-3] - Stopping job worker gracefully; sending a stop signal to the worker via service bus....
+ INFO [nREPL-worker-3] - Stopping job worker gracefully; sending a stop signal to the worker via service bus....
+ INFO [nREPL-worker-3] - Stopping system :core-local ...
+ INFO [nREPL-worker-3] - Stopping action processor pool...
+ INFO [nREPL-worker-3] - Stopping CacheEvictionComponent thread [ CacheEvictionComponent thread 0 ]...
+ ```
 
 ## License
 Copyright © Miro Kubicek
