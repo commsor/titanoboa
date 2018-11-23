@@ -111,16 +111,15 @@ then execute the jar:
 ## Getting Started
 
 ### Develop & Test Workflows with titanoboa GUI
+Titanoboa GUI is best place to start devloping and testing workflows.
 
 [![]( https://github.com/mikub/titanoboa/blob/master/doc/generate-report17-change-details.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/generate-report17-change-details.png )
-
-Titanoboa GUI is best place to start devloping and testing workflows.
 
 [![]( https://github.com/mikub/titanoboa/blob/master/doc/generate-report19-jobs.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/generate-report19-jobs.png )
 
 See an example in our wiki on how to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
-### Develop & Test Workflows Locally in REPL
+### Develop & Test Workflows Locally in your REPL or IDE
 If you cannot use GUI and do not want to use REST API, you can as well just start REPL locally and play with titanoboa there.
 Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 
