@@ -113,7 +113,7 @@ then execute the jar:
 Before you start, it might be a good idea to get familiar with titanoboa's [concepts](https://github.com/mikub/titanoboa/wiki).
 
 ### Develop & Test Workflows with titanoboa GUI
-Titanoboa GUI is best place to start devloping and testing workflows.
+Titanoboa GUI is a good place to start devloping and testing workflows:
 
 [![]( https://github.com/mikub/titanoboa/blob/master/doc/generate-report17-change-details.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/generate-report17-change-details.png )
 
@@ -121,7 +121,7 @@ Titanoboa GUI is best place to start devloping and testing workflows.
 
 See an example in our wiki on how to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
-### Develop & Test Workflows Locally in your REPL or IDE
+### Develop & Test Workflows Locally in Your REPL / IDE
 If you cannot use GUI and do not want to use REST API, you can as well just start REPL locally and play with titanoboa there.
 Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 
@@ -138,6 +138,7 @@ Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
   <version>0.7.1</version>
 </dependency>
 ```
+then fire off a repl and start:
 
 #### Define a sample "Hello World!" workflow:
 ```clojure
