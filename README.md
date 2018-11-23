@@ -178,8 +178,7 @@ Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 (def jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))
 (def finished-jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))
 
-(deftest start-system!
-  (titanoboa.system/start-system! :core-local
+(titanoboa.system/start-system! :core-local
                                   {:core-local {:system-def   #'titanoboa.system.local/local-core-system
                                           :worker-def   #'titanoboa.system.local/local-worker-system
                                           :worker-count 2}}
@@ -190,13 +189,27 @@ Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
                                    :eviction-interval  (* 1000 60 5)
                                    :eviction-age       (* 1000 60 10)
                                    :jobs-repo-path     "repo-test/"
-                                   :job-folder-path    "job-folders/"}))
-
-(deftest start-workers!
-  (titanoboa.system/start-workers! :core-local
+                                   :job-folder-path    "job-folders/"})
+                                   
+ INFO [nREPL-worker-0] - Starting system :core-local ...
+ INFO [nREPL-worker-0] - Starting CacheEvictionComponent...
+ INFO [CacheEvictionComponent thread 0] - Starting CacheEvictionComponent thread [ CacheEvictionComponent thread 0 ].
+ INFO [nREPL-worker-0] - Starting action processor pool...
+ INFO [nREPL-worker-0] - Starting to watch repo folder for changes:  dev-resources/repo-test/
+ INFO [nREPL-worker-0] - System :core-local started
+=> true
+ 
+(titanoboa.system/start-workers! :core-local
                                    {:core-local {:system-def   #'titanoboa.system.local/local-core-system
                                            :worker-def   #'titanoboa.system.local/local-worker-system
-                                           :worker-count 2}}))
+                                           :worker-count 2}})
+                                           
+ INFO [nREPL-worker-1] - Starting 2 workers for system :core-local :
+ INFO [nREPL-worker-1] - Starting a worker for system :core-local ...
+ INFO [nREPL-worker-1] - Starting job worker....
+ INFO [nREPL-worker-1] - Starting a worker for system :core-local ...
+ INFO [nREPL-worker-1] - Starting job worker....
+=> nil                                           
 ```
 #### Start the job:
 ```clojure
@@ -204,6 +217,61 @@ Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
                               {:jobdef job-def
                                :properties {:name "World"}}
                               true)
+
+ INFO [nREPL-worker-2] - Submitting new job [] into new jobs channel...
+ INFO [async-thread-macro-2] - Initializing a new job; First step will be: [ step1 ]
+ INFO [async-thread-macro-2] - Retrieved job [ d673c759-4fc6-4af1-bdad-d1dfd0f50f22 ] from jobs channel; Starting step [ step1 ]
+ INFO [async-thread-macro-2] - Next step is  step2 ; Submitting into jobs channel for next step's processing...
+ INFO [async-thread-macro-1] - Initializing a next step; next step [ step2 ] was found among steps as step [ step2 ]
+ INFO [async-thread-macro-2] - Acking main message for step  step1  with thread stack  nil
+ INFO [async-thread-macro-1] - Retrieved job [ d673c759-4fc6-4af1-bdad-d1dfd0f50f22 ] from jobs channel; Starting step [ step2 ]
+ INFO [async-thread-macro-1] - Looping through finalize-job! fn with thread-stack:  []
+ INFO [async-thread-macro-1] - Acking main message for step  step2  with thread stack  nil
+ INFO [async-thread-macro-1] - Job  d673c759-4fc6-4af1-bdad-d1dfd0f50f22  has finshed.
+=>
+{:properties {:name "World", :message "Hello World! Nice to meet you!"},
+ :step-start #inst"2018-11-23T07:35:34.218-00:00",
+ :step-retries {},
+ :tracking-id nil,
+  :step-state :completed,
+ :start #inst"2018-11-23T07:35:34.203-00:00",
+ :history [{:step-state :completed,
+            :start #inst"2018-11-23T07:35:34.210-00:00",
+            :duration 6,
+            :result false,
+            :node-id "localhost",
+            :id "step1",
+            :next-step "step2",
+            :exception nil,
+            :end #inst"2018-11-23T07:35:34.216-00:00",
+            :retry-count nil,
+            :thread-stack nil,
+            :message "Step [step1] finshed with result [false]\n"}
+           {:id "step2",
+            :step-state :running,
+            :start #inst"2018-11-23T07:35:34.218-00:00",
+            :node-id "localhost",
+            :retry-count 0}
+           {:step-state :completed,
+            :start #inst"2018-11-23T07:35:34.218-00:00",
+            :duration 1,
+            :result nil,
+            :node-id "localhost",
+            :id "step2",
+            :next-step nil,
+            :exception nil,
+            :end #inst"2018-11-23T07:35:34.219-00:00",
+            :retry-count nil,
+            :thread-stack nil,
+            :message "Step [step2] finshed with result []\n"}],
+ :duration 16,
+ :state :finished,
+ :jobid "d673c759-4fc6-4af1-bdad-d1dfd0f50f22",
+ :create-folder? true,
+ :node-id "localhost",
+ :next-step nil,
+ :end #inst"2018-11-23T07:35:34.219-00:00"}
+
 ```
 
 ## License
