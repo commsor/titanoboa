@@ -21,9 +21,6 @@
 
 (def ^Server server nil)
 
-(defn process-cluster-command [c]
-  (eval c))
-
 (defn find-ns-starting-with [s]
   (filter #(-> %
                str
@@ -109,9 +106,6 @@
                                                                                    (when (:worker-def v) {:worker-def-source (clojure.repl/source-fn (var->symbol (:worker-def v)))}))])
                                                                        (:systems-catalogue server-config)))))
 
-;;TODO revise how catalogue is being stored/accessed? Seems it is inevitable to store it in some atom or var since it needs to be accessed arbitrarily from different places?
-;;(system/set-system-catalogue! (:systems-catalogue server-config))
-
 (defn init-job-folder! [path]
   (when-not (fs/directory? path) (fs/mkdirs path)))
 
@@ -119,13 +113,13 @@
   (println "Shutting down...")
   (log/info "Shutting down...")
   (.stop server)
-  (try (deps/stop-deps-watch!))
-  (try (system/stop-all-systems!)))
+  (deps/stop-deps-watch!)
+  (system/stop-all-systems!))
 
 (defn- shutdown-runtime![]
   (shutdown!)
-  (try (shutdown-agents))
-  (try (.interrupt clojure.core.async.impl.timers/timeout-daemon)))
+  (shutdown-agents)
+  (.interrupt @clojure.core.async.impl.timers/timeout-daemon))
 
 (defn -main [& [cfg host]]
   (log/info "Starting Titanoboa server...")
@@ -140,12 +134,3 @@
   (alter-var-root #'server
                   (constantly (run-jetty (handler/get-ring-app server-config)
                                          (:jetty server-config)))))
-
-;;comment this out if NOT running server w/ figwheel or REPL:
-#_(do
-  (log/info "Starting Titanoboa server...")
-  (require-extensions)
-  (load-dependencies!)
-  (init-config!)
-  (def app (handler/get-ring-app server-config))
-  (system/run-systems-onstartup! (:systems-catalogue server-config) server-config))
