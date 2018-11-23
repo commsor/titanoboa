@@ -17,7 +17,7 @@ Titanoboa has been created with aim to create a workflow platform, that would su
 * configurable step **retry** upon error and advanced customizable error handling
 * advanced branching and conditional flow
 * potentially **cyclic** workflow graphs
-* **splitter** and **aggregator** (aka map/reduce) patterns which allows for processing of larger data sets
+* **splitter** and **aggregator** (aka map/reduce) patterns which allow for processing of larger data sets
 * fully **transactional** nature that assures that all steps are executed even in case of a failover
 
 In addition to this titanoboa also strives to honor **immutability and functional programming principles**. This enables it to be fully **distributed** and to be **highly available** with no central master server or database. This also helps lift performance limitations and thus titanoboa can be suitable for not only batch processing, but also for performance critical workflows.
