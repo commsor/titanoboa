@@ -108,6 +108,105 @@ then execute the jar:
     
      java -jar titanoboa.jar
 
+## Getting Started
+
+### Develop & Test Workflows with titanoboa GUI
+
+[![]( https://github.com/mikub/titanoboa/blob/master/doc/generate-report17-change-details.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/generate-report17-change-details.png )
+
+Titanoboa GUI is best place to start devloping and testing workflows.
+
+[![]( https://github.com/mikub/titanoboa/blob/master/doc/generate-report19-jobs.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/generate-report19-jobs.png )
+
+See an example in our wiki on how to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
+
+### Develop & Test Workflows Locally in REPL
+If you cannot use GUI and do not want to use REST API, you can as well just start REPL locally and play with titanoboa there.
+Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
+
+[![Clojars Project](https://img.shields.io/clojars/v/titanoboa.svg)](https://clojars.org/titanoboa)
+
+```clojure
+[titanoboa "0.7.1"]
+```
+
+```xml
+<dependency>
+  <groupId>titanoboa</groupId>
+  <artifactId>titanoboa</artifactId>
+  <version>0.7.1</version>
+</dependency>
+```
+
+#### Define a sample workflow:
+```clojure
+(ns local-system-test
+  (:require [titanoboa.system]
+            [titanoboa.processor]))
+
+(defn hello-fn [p]
+  {:message (str "Hello " (or (:name p) "human") "!")
+   :return-code (nil? (:name p))})
+
+(defn greet-fn [p]
+  {:message (str (:message p) " Nice to meet you!")})
+
+(defn fill-in-blanks [p]
+  {:message (str (:message p) " What is your name?")})
+  
+(def job-def {:first-step "step1"
+              :name       "test"
+              :properties {:name nil}
+              :steps      [{:id          "step1"
+                            :type :custom
+                            :supertype :tasklet
+                            :next [[false "step2"] [true "step3"]]
+                            :workload-fn 'local-system-test/hello-fn
+                            :properties  {}}
+                           {:id          "step2" :type :custom :supertype :tasklet
+                            :workload-fn 'local-system-test/greet-fn
+                            :next        []
+                            :properties  {}}
+                           {:id          "step3" :type :custom :supertype :tasklet
+                            :workload-fn 'local-system-test/fill-in-blanks
+                            :next        []
+                            :properties  {}}]})
+```
+
+#### Start a simple local system with workers that will process the job:
+```clojure
+(def new-jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))
+(def jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))
+(def finished-jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))
+
+(deftest start-system!
+  (titanoboa.system/start-system! :core-local
+                                  {:core-local {:system-def   #'titanoboa.system.local/local-core-system
+                                          :worker-def   #'titanoboa.system.local/local-worker-system
+                                          :worker-count 2}}
+                                  {:new-jobs-chan      new-jobs-chan
+                                   :jobs-chan          jobs-chan
+                                   :finished-jobs-chan finished-jobs-chan
+                                   :node-id            "localhost"
+                                   :eviction-interval  (* 1000 60 5)
+                                   :eviction-age       (* 1000 60 10)
+                                   :jobs-repo-path     "repo-test/"
+                                   :job-folder-path    "job-folders/"}))
+
+(deftest start-workers!
+  (titanoboa.system/start-workers! :core-local
+                                   {:core-local {:system-def   #'titanoboa.system.local/local-core-system
+                                           :worker-def   #'titanoboa.system.local/local-worker-system
+                                           :worker-count 2}}))
+```
+#### Start the job:
+```clojure
+(titanoboa.processor/run-job! :core-local
+                              {:jobdef job-def
+                               :properties {:name "World"}}
+                              true)
+```
+
 ## License
 Copyright © Miro Kubicek
 
