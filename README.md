@@ -109,6 +109,7 @@ then execute the jar:
      java -jar titanoboa.jar
 
 ## Getting Started
+Before you start, it might be a good idea to get familiar with titanoboa's [concepts](https://github.com/mikub/titanoboa/wiki).
 
 ### Develop & Test Workflows with titanoboa GUI
 Titanoboa GUI is best place to start devloping and testing workflows.
@@ -137,7 +138,7 @@ Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 </dependency>
 ```
 
-#### Define a sample workflow:
+#### Define a sample "Hello World!" workflow:
 ```clojure
 (ns local-system-test
   (:require [titanoboa.system]
