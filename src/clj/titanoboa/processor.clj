@@ -253,7 +253,7 @@
           _ (assert map-step "No matching map step found for a reduce step." )
           {:keys [dispatched-indexes aggregator-notif-ch aggregator-callback-ch standalone-system? sys-key]} map-step
           dispatched-count (count dispatched-indexes)
-          workload-fn (exp/eval-property (get step :workload-fn))
+          workload-fn (get step :workload-fn)
           map-step-id-log (java.io.File. jobdir (str step-id ".reduce.notif"))
           map-step-id-tuples (if-not (.exists map-step-id-log) (atom nil) (atom (read-string (slurp map-step-id-log))))
           processed-indexes (atom #{})
@@ -294,7 +294,7 @@
         (channel/alt!! [aggregator-callback-ch aggregator-notif-ch]
                        ([m ch]
                          (cond
-                           (= ch aggregator-callback-ch) (let [r (workload-fn result m)] ;;
+                           (= ch aggregator-callback-ch) (let [r (exp/run-exfn workload-fn result (:properties m))] ;;
                                                            (log/debug "Aggregator step " step-id " retrieved a callback message from a splitter step: " m)
                                                              (swap! processed-count inc) ;;TODO currently this is now single-threaded but if multithreaded in future use STM!
                                                              (swap! processed-indexes conj (:tracking-id m))

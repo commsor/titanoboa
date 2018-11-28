@@ -4,9 +4,13 @@
             [clojure.tools.logging :as log]
             [cognitect.transit :as transit]
             [taoensso.nippy :as nippy]
-            [titanoboa.dependencies :as deps])
+            [titanoboa.dependencies :as deps]
+            [titanoboa.singleton :as singleton])
   (:import [pl.joegreen.lambdaFromString LambdaFactory DynamicTypeReference]
-           (java.io ObjectOutputStream)))
+           (java.io ObjectOutputStream)
+           (clojure.lang PersistentArrayMap)
+           (java.util Map)
+           (io.titanoboa.java IWorkloadFn)))
 
 (def ^:dynamic *job* {})
 (def ^:dynamic *properties* {})
@@ -37,6 +41,9 @@
 (defn expression? [exp]
   (= (type exp) titanoboa.exp.Expression))
 
+(defn java-expression? [exp]
+  (and (expression? exp) (= (:type exp) "java")))
+
 ;;TODO spawn different namespace for each logged user (and maybe separate for each job/step/revision?) - OR USE DIFFERENT Clojure RunTime!
 (defn eval-snippet [s ns-sym]
   (binding [*ns* (create-ns ns-sym)
@@ -52,12 +59,46 @@
     (list? (:value expr)) (eval (:value expr))
     (symbol? (:value expr)) (resolve (:value expr))))
 
-(defn eval-fn [expr]
+(defn eval-exfn [expr]
   (cond
     (expression? expr) (eval-expr expr)
     (symbol? expr) (resolve expr)
     (list? expr) (eval expr)
+    (and (class? expr) (.isAssignableFrom IWorkloadFn expr)) (singleton/get-instance expr)
     :else expr))
+
+(defn validate-exfn [expr]
+  (cond
+    (fn? expr) expr
+    (instance? IWorkloadFn expr) expr
+    (and (class? expr) (.isAssignableFrom IWorkloadFn expr)) (singleton/get-instance expr)
+    :else expr))
+
+(defn run-exfn
+  ([expr arg1]
+   (cond (java-expression? expr) (do (when-not (string? (:value expr)) (throw (java.lang.IllegalStateException. "Value of java lambda expression must be String!")))
+                                            (-> java-lambda-factory
+                                                (.createLambdaUnchecked (:value expr) (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, clojure.lang.IPersistentMap>"))
+                                                (.apply arg1)))
+         :else  (-> expr
+                    eval-exfn
+                    validate-exfn
+                    (.invoke arg1))))
+  ([expr arg1 arg2]
+   (cond (java-expression? expr) (do (when-not (string? (:value expr)) (throw (java.lang.IllegalStateException. "Value of java lambda expression must be String!")))
+                                            (-> java-lambda-factory
+                                                (.createLambdaUnchecked (:value expr) (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, clojure.lang.IPersistentMap>"))
+                                                (.apply arg1 arg2)))
+         :else  (-> expr
+                    eval-exfn
+                    validate-exfn
+                    (.invoke arg1 arg2)))))
+
+(defn convert-java-maps [r]
+  (cond
+    (map? r) r
+    (instance? Map r) (PersistentArrayMap/create r)
+    :else r))
 
 (defn run-workload-fn [{:keys [step properties] :as job} &[fn-key]]
   (binding [*ns* (find-ns 'titanoboa.exp)
@@ -67,12 +108,8 @@
     (try
       (let [fn-key (or fn-key :workload-fn)
             workload-fn (get step fn-key)]
-        (case (:type workload-fn)
-                "java" (do (when-not (string? (:value workload-fn)) (throw (java.lang.IllegalStateException. "Value of java lambda expression must be String!")))
-                         (-> java-lambda-factory
-                           (.createLambdaUnchecked (:value workload-fn) (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, clojure.lang.IPersistentMap>"))
-                           (.apply properties)))
-                ((eval-fn workload-fn) properties)))
+        (-> (run-exfn workload-fn properties)
+            convert-java-maps))
       (catch Exception e
         (log/warn "workload-fn of step [" (:id step) "] threw an Exception: " e)
         {:exit-code "error"

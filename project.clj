@@ -1,4 +1,4 @@
-(defproject titanoboa "0.7.2-SNAPSHOT"
+(defproject io.titanoboa/titanoboa "0.7.2-SNAPSHOT"
   :description "titanoboa.io is fully distributed, highly scalable and fault tolerant workflow orchestration platform"
   :url "http://titanoboa.io"
   :license {:name "GNU Affero General Public License"
@@ -37,7 +37,8 @@
                  [com.mchange/c3p0 "0.9.5.2"]
                  [honeysql "0.9.1"]
                  [postgresql/postgresql "9.4.1208-jdbc42-atlassian-hosted"]
-                 [com.draines/postal "2.0.2"]]
+                 [com.draines/postal "2.0.2"]
+                 [io.titanoboa/titanoboa-java "0.1.0"]]
 
   :repositories [["atlassian" 	"https://maven.atlassian.com/3rdparty/"]]
 
