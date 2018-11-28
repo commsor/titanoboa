@@ -310,7 +310,7 @@ or
  or in GUI:
 [![]( https://github.com/mikub/titanoboa/blob/master/doc/java-workload.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/java-workload.png )
 
-#### Java lambda support
+### Java lambda support
 To rapidly development and test new steps, you can also type a lambda function in the GUI and have titanoboa evaluate it during runtime:
 [![]( https://github.com/mikub/titanoboa/blob/master/doc/java-lambda-workload.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/java-lambda-workload.png )
 
