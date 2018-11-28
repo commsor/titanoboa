@@ -121,7 +121,7 @@ Titanoboa GUI is a good place to start devloping and testing workflows:
 
 See an example in our wiki on how to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
-### Develop & Test Workflows Locally in Your REPL / IDE
+### Develop & Test Workflows Locally in Your Clojure REPL
 If you cannot use GUI and do not want to use REST API, you can as well just start REPL locally and play with titanoboa there.
 Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 
@@ -287,6 +287,27 @@ When you are done testing you may want to stop the system:
  INFO [nREPL-worker-3] - Stopping action processor pool...
  INFO [nREPL-worker-3] - Stopping CacheEvictionComponent thread [ CacheEvictionComponent thread 0 ]...
  ```
+ ### Developing custom workflow steps in Java <img width="32" height="32"  src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg">
+ Titanoboa is also meant to be used by java developers who (apart from few concepts like [EDN](https://github.com/edn-format/edn)) do not need to be familiar with clojure. If you do not wasnt to use clojure [java interop](https://clojure.org/reference/java_interop) to instantiate your objects and/or invoke your methods, you also have anohter option:
+ 
+ To create a custom workflow step, simply add a (maven) dependency to  [![Clojars Project](https://img.shields.io/clojars/v/io.titanoboa/titanoboa-java.svg)](https://clojars.org/io.titanoboa/titanoboa-java)
+ and create a class that will implement [io.titanoboa.java.IWorkloadFn](https://github.com/mikub/titanoboa-java/blob/master/src/main/java/io/titanoboa/java/IWorkloadFn.java) interface:
+ ```java
+ public interface IWorkloadFn {
+    public Object invoke (Map properties);
+}
+ ```
+ If you then add your class (or the corresponding maven artifact) to titanoboa's [external dependencies](https://github.com/mikub/titanoboa/wiki/Server-Configuration#external-dependencies), you can use your class name in the workflow-fn field. The class will be automatically intantiated as a singleton bean (so it has to have a constructor with no argumet) and all subsequent references to it from any workflow-fn will invoke its __invoke__ method:
+ 
+ ```clojure
+ :workload-fn io.titanoboa.java.SampleWorkloadImpl
+ ```
+or
+
+ ```clojure
+ :workload-fn 'io.titanoboa.java.SampleWorkloadImpl
+ ```
+ 
 
 ## License
 Copyright © Miro Kubicek
