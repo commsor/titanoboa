@@ -125,17 +125,17 @@ See an example in our wiki on how to create a [sample workflow](https://github.c
 If you cannot use GUI and do not want to use REST API, you can as well just start REPL locally and play with titanoboa there.
 Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 
-[![Clojars Project](https://img.shields.io/clojars/v/titanoboa.svg)](https://clojars.org/titanoboa)
+[![Clojars Project](https://img.shields.io/clojars/v/io.titanoboa/titanoboa.svg)](https://clojars.org/io.titanoboa/titanoboa)
 
 ```clojure
-[titanoboa "0.7.1"]
+[io.titanoboa/titanoboa "0.7.2"]
 ```
 
 ```xml
 <dependency>
-  <groupId>titanoboa</groupId>
+  <groupId>io.titanoboa</groupId>
   <artifactId>titanoboa</artifactId>
-  <version>0.7.1</version>
+  <version>0.7.2</version>
 </dependency>
 ```
 then fire off a repl and start:
