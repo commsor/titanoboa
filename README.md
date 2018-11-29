@@ -25,7 +25,7 @@ In addition to this titanoboa also strives to honor **immutability and functiona
 Titanoboa's [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI) can be used not only to monitor workflow jobs and server configuration, but provides an in-build IDE with workflow visualisation, properties editor and a repl so as users can rapidly test-develop new workflows directly in there.
 
 <img width="42" height="42" src="https://github.com/mikub/titanoboa/blob/master/doc/clojure.svg"><img width="54" height="54" src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg"><br/>
-Titanoboa is **designed for both java & clojure developers** and we are striving to make it **usable even for people with no prior clojure knowledge**.
+Titanoboa is **designed for both java & clojure developers** and we are striving to make it **usable even for java developers with no prior clojure knowledge**.
 
 
 ## Installation 
