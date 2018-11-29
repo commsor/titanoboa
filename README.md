@@ -114,7 +114,7 @@ then execute the jar:
      java -jar titanoboa.jar
 
 ## Getting Started
-Before you start, it might be a good idea to get familiar with titanoboa's [concepts](https://github.com/mikub/titanoboa/wiki).
+Before you start, it might be a good idea to get familiar with titanoboa's [concepts](https://github.com/mikub/titanoboa/wiki) & [workflow design principles](https://github.com/mikub/titanoboa/wiki/Designing-Workflows).
 
 ### Develop & Test Workflows with titanoboa GUI
 Titanoboa GUI is a good place to start devloping and testing workflows:
