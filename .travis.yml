@@ -1,14 +1,14 @@
 language: clojure
 jdk:
   - openjdk8
-  - openjdk9
+#  - openjdk9
   
-matrix:
-  include:
-    - jdk: openjdk9
-      before_install:
-        - rm "${JAVA_HOME}/lib/security/cacerts"
-        - ln -s /etc/ssl/certs/java/cacerts "${JAVA_HOME}/lib/security/cacerts"
+#matrix:
+#  include:
+#    - jdk: openjdk9
+#      before_install:
+#        - rm "${JAVA_HOME}/lib/security/cacerts"
+#        - ln -s /etc/ssl/certs/java/cacerts "${JAVA_HOME}/lib/security/cacerts"
 
 # configure notifications (email, IRC, campfire etc)
 notifications:
