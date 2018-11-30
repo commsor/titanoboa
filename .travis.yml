@@ -1,5 +1,7 @@
 language: clojure
-
+jdk:
+  - openjdk8
+  - openjdk9
 # configure notifications (email, IRC, campfire etc)
 notifications:
 email: "miro@titanoboa.io"
