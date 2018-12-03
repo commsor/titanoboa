@@ -29,64 +29,9 @@ Titanoboa's [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting-Started-wi
 Titanoboa is **designed for both java & clojure developers** and we are striving to make it **usable even for java developers with no prior clojure knowledge**.
 
 
-## Installation 
-Download the latest release from https://www.titanoboa.io/titanoboa.jar. It is a single jar file.
-
-    curl --remote-name https://www.titanoboa.io/titanoboa.jar
-
-__Note__: _If you are intending on running titanoboa server on java JDK instead of JRE, download a distribution for JDK instead:_
-
-    curl --remote-name https://www.titanoboa.io/titanoboa4jdk.jar
-
-then execute the jar:
-    
-     java -jar titanoboa.jar
-
-In your console you should see bunch of log messages and ultimately you will see
-     
-     INFO [main] - Started @3238ms
-
-which means the server started successfully. By default the server and will start on port 3000.
-
-Congratulations! You have just started your titanoboa server!
-
-### Running server with GUI
-
-Titanoboa GUI is great place for developing and designing new workflows as well as for managing their execution and monitoring the status of your server(s).
-It is also a great starting point for evaluating and exploring the titanoboa platform.
-
-__The GUI is free for non-commercial use only__, so if you just want to explore titanoboa it is the best place to start:
-
-Download the latest release from https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa.jar. It is a single jar file, the GUI is already in it.
-
-    curl --remote-name https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa.jar
-
-__Note__: _If you are intending on running titanoboa server on java JDK instead of JRE, download a distribution for JDK instead:_
-
-    curl --remote-name https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa4jdk.jar
-
-then execute the jar:
-    
-     java -jar titanoboa.jar
-
-In your console you should see bunch of log messages and ultimately you will see
-     
-     INFO [main] - Started @3478ms
-
-which means the server started successfully. By default the server and the GUI will start on port 3000 so you can open http://localhost:3000 in your browser to access it.
-
-Now you can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
-
 ### Prerequisites
 Java 8 JRE or JDK. Almost all of the functionality works on Java 8 and higher, however Java Lambda support and external maven dependencies (loaded during runtime) has been tested only on Java 8. 
 External maven dependencies will not load in Java 9 and higher - this is currently beeing worked on.
-
-### Server Configuration
-Server configuration and external dependencies file can be specified by system properties `boa.server.config.path` and `boa.server.dependencies.path`:
-
-     java -Dboa.server.config.path=boa_server_config_local.clj -Dboa.server.dependencies.path=ext-dependencies.clj -jar titanoboa.jar
-     
-See [Server configuration wiki](https://github.com/mikub/titanoboa/wiki/Server-Configuration) for more details.
 
 ### Building from the repository
 In case you don't want to download distributed release from our web page but to build it from the repository:
@@ -105,6 +50,8 @@ this will generate a big jar file (aka uberjar) in the _target_ directory.
 If you want to use GUI you can clone the titanoboa-gui repository as well:
 
     git clone https://github.com/mikub/titanoboa-gui
+    
+**Note**: _The GUI is free for non-commercial use only_
 
 then merge GUI's _public_ folder into the uberjar:
 
@@ -113,6 +60,24 @@ then merge GUI's _public_ folder into the uberjar:
 then execute the jar:
     
      java -jar titanoboa.jar
+
+In your console you should see bunch of log messages and ultimately you will see
+     
+     INFO [main] - Started @3238ms
+
+which means the server started successfully. By default the server and will start on port 3000.
+
+Congratulations! You have just started your titanoboa server!
+
+If you included GUI you can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
+
+### Server Configuration
+Server configuration and external dependencies file can be specified by system properties `boa.server.config.path` and `boa.server.dependencies.path`:
+
+     java -Dboa.server.config.path=boa_server_config_local.clj -Dboa.server.dependencies.path=ext-dependencies.clj -jar titanoboa.jar
+     
+See [Server configuration wiki](https://github.com/mikub/titanoboa/wiki/Server-Configuration) for more details.
+
 
 ## Getting Started
 Before you start, it might be a good idea to get familiar with titanoboa's [concepts](https://github.com/mikub/titanoboa/wiki) & [workflow design principles](https://github.com/mikub/titanoboa/wiki/Designing-Workflows).
