@@ -34,7 +34,6 @@ Java 8 JRE or JDK. Almost all of the functionality works on Java 8 and higher, h
 External maven dependencies will not load in Java 9 and higher - this is currently beeing worked on.
 
 ### Building from the repository
-In case you don't want to download distributed release from our web page but to build it from the repository:
 Titanoboa uses leiningen for dependency management, so if you don't have it download it from https://leiningen.org/ and follow its installation instructions.
 
 Clone this repository
