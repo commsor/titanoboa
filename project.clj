@@ -3,7 +3,7 @@
   :url "http://titanoboa.io"
   :license {:name "GNU Affero General Public License"
             :url "https://www.gnu.org/licenses/agpl-3.0.en.html"}
-  :dependencies [[org.clojure/clojure "1.9.0"]
+  :dependencies [[org.clojure/clojure "1.10.0"]
                  [pl.joegreen/lambda-from-string "1.6"] ;;Note: if running on JDK use this instead: [pl.joegreen/lambda-from-string "1.6" :exclusions [org.eclipse.jdt.core.compiler/ecj]]
                  [com.stuartsierra/component "0.3.1"]
                  [org.clojure/core.async "0.4.490"]
@@ -15,9 +15,9 @@
                  [org.slf4j/slf4j-log4j12 "1.7.5"]
                  [org.clojure/tools.namespace "0.2.11"]
                  [org.clojure/java.classpath "0.2.3"]
-                 [org.tcrawley/dynapath "0.2.4"];;"0.2.4"
+                 [org.tcrawley/dynapath "1.0.0"];;"0.2.4"
                  [org.xeustechnologies/jcl-core "2.8"  :exclusions [org.slf4j/slf4j-api]]
-                 [com.cemerick/pomegranate "1.0.0" :exclusions [org.tcrawley/dynapath]]
+                 [com.cemerick/pomegranate "1.1.0" :exclusions [org.tcrawley/dynapath]]
                  [com.taoensso/nippy "2.14.0"]
                  [me.raynes/fs "1.4.6"]
                  [clojure-watch "0.1.14"]
@@ -38,6 +38,7 @@
                  [honeysql "0.9.1"]
                  [postgresql/postgresql "9.4.1208-jdbc42-atlassian-hosted"]
                  [com.draines/postal "2.0.2"]
+                 [io.titanoboa/titanoboa-launcher "0.1.0"]
                  [io.titanoboa/titanoboa-java "0.1.0"]]
 
   :repositories [["atlassian" 	"https://maven.atlassian.com/3rdparty/"]]

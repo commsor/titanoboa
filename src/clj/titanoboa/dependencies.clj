@@ -6,7 +6,8 @@
             [clojure-watch.core :refer [start-watch]]
             [me.raynes.fs :as fs]
             [clojure.java.io :as io])
-  (:import (java.io File FileOutputStream)))
+  (:import (java.io File FileOutputStream)
+           (clojure.lang DynamicClassLoader)))
 
 (def dependencies-path-property "boa.server.dependencies.path")
 
@@ -155,13 +156,22 @@
               (clojure.lang.Var/popThreadBindings)
               (.setContextClassLoader (Thread/currentThread) cl#))))))
 
+
+(defn add-dynamic-cl!  []
+  (let [thread (Thread/currentThread)
+        cl (.getContextClassLoader thread)]
+    (when-not (instance? DynamicClassLoader cl)
+      (.setContextClassLoader thread (DynamicClassLoader. cl)))))
+
 (defn load-ext-dependencies [ext-coordinates]
   "Loads provided dependencies (in bulk) and requires/imports specified namespaces/classes.
   ext-coordinates is supposed to be in a format of {:coordinates [[com.draines/postal \"2.0.2\"]] :require [[postal.core]] :import nil :repositories nil}"
   (when-let [c (:coordinates ext-coordinates)]
     (log/info "Loading external dependencies: \n" c " \n from repositories " (:repositories ext-coordinates))
     (pom/add-dependencies :coordinates c
-                    :repositories (:repositories ext-coordinates))
+                    :repositories (:repositories ext-coordinates)
+                          :classloader (last (filter pom/modifiable-classloader?
+                                                     (pom/classloader-hierarchy)))) ;;:classloader (clojure.lang.RT/baseLoader)
     (when-let [r (:require ext-coordinates)]
       (log/info "Requiring external namespaces: " r)
       (apply require r))

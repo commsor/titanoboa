@@ -1,5 +1,6 @@
 (ns titanoboa.server
-  (:gen-class)
+  (:gen-class
+    :implements [io.titanoboa.Startable])
   (:require [clojure.repl]
             [clojure.tools.namespace.find :as ns.find]
             [clojure.java.io :as io]
@@ -14,10 +15,15 @@
             [com.stuartsierra.component :as component]
             [clojure.tools.logging :as log]
             [titanoboa.system.local]
-            [me.raynes.fs :as fs])
+            [me.raynes.fs :as fs]
+            [dynapath.util :as dp]
+            [cemerick.pomegranate :as pom]
+            [dynapath.dynamic-classpath :as dc])
   (:import [org.eclipse.jetty.server
             Server]
-           [java.io File]))
+           [java.io File]
+           io.titanoboa.cloader.DynamicClassLoader
+           java.net.URLClassLoader))
 
 (def ^Server server nil)
 
@@ -27,7 +33,9 @@
                (.startsWith s)) (ns.find/find-namespaces (cp/classpath))))
 
 (defn extract-zip-resource [resource unzip-to]
-  (with-open [stream (-> (ClassLoader/getSystemResourceAsStream resource)
+  (with-open [stream (-> (Thread/currentThread)
+                         (.getContextClassLoader)
+                         (.getResourceAsStream resource)
                          (java.util.zip.ZipInputStream.))]
     (loop [entry (.getNextEntry stream)]
       (if entry
@@ -85,14 +93,23 @@
   (symbol (str (:ns (meta v)))
           (str (:name (meta v)))))
 
+(extend DynamicClassLoader
+  dc/DynamicClasspath
+  (assoc dc/base-readable-addable-classpath
+    :add-classpath-url (fn [^DynamicClassLoader cl url]
+                         (.addURL cl url))
+    :classpath-urls #(seq (.getURLs ^URLClassLoader %))))
+
 (defn load-dependencies! []
+  (log/info "Classloader hierarchy:")
+  (mapv #(log/info (str % " - modifiable: " (pom/modifiable-classloader? %))) (pom/classloader-hierarchy))
   (when-not (deps/get-deps-path-property)
     (deps/init-dependency-file!))
   (deps/start-deps-watch! (deps/get-deps-path-property)))
 
 (defn init-config! [& [cfg host]]
   (if cfg
-    (alter-var-root #'server-config (constantly cfg))
+    (alter-var-root #'server-config (constantly cfg)
     (if-let [config-path (System/getProperty "boa.server.config.path")]
       (load-file config-path)
       (if-let [cp-config (io/resource "boa-server-config.clj")]
@@ -121,16 +138,22 @@
   (shutdown-agents)
   (.interrupt @clojure.core.async.impl.timers/timeout-daemon))
 
-(defn -main [& [cfg host]]
-  (log/info "Starting Titanoboa server...")
-  (.addShutdownHook (Runtime/getRuntime) (Thread. shutdown-runtime!))
-  (require-extensions)
-  (load-dependencies!)
-  (init-config! cfg host)
-  (init-job-folder!  (:job-folder-path server-config))
-  (init-step-repo! (:steps-repo-path server-config))
-  (system/run-systems-onstartup! (:systems-catalogue server-config) server-config)
-  (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
-  (alter-var-root #'server
-                  (constantly (run-jetty (handler/get-ring-app server-config)
-                                         (:jetty server-config)))))
+(defn start
+  [& [cfg host]]
+   (log/info "Starting Titanoboa server...")
+   (.addShutdownHook (Runtime/getRuntime) (Thread. shutdown-runtime!))
+   (require-extensions)
+   (load-dependencies!)
+   (init-config! cfg host)
+   (init-job-folder!  (:job-folder-path server-config))
+   (init-step-repo! (:steps-repo-path server-config))
+   (system/run-systems-onstartup! (:systems-catalogue server-config) server-config)
+   (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
+   (alter-var-root #'server
+                   (constantly (run-jetty (handler/get-ring-app server-config)
+                                          (:jetty server-config)))))
+(defn -start [this]
+  (start))
+
+(defn -main [& args]
+  (start))
