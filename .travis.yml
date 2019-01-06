@@ -1,10 +1,8 @@
 language: clojure
-jdk:
-  - openjdk8
-  - openjdk9
 
 matrix:
   include:
+    - jdk: openjdk8
     - jdk: openjdk9
       before_install:
         - rm "${JAVA_HOME}/lib/security/cacerts"

@@ -41,8 +41,10 @@
                  [io.titanoboa/titanoboa-launcher "0.1.0"]
                  [io.titanoboa/titanoboa-java "0.1.0"]]
 
-  :profiles {:java9+ {:dependencies [[org.tcrawley/dynapath "1.0.0"]
-                                     [com.cemerick/pomegranate "1.1.0" :exclusions [org.tcrawley/dynapath]]]}}
+  :profiles {:java8jdk {:dependencies [[pl.joegreen/lambda-from-string "1.6" :exclusions [org.eclipse.jdt.core.compiler/ecj]]]}
+             :java9+ {:dependencies [[org.tcrawley/dynapath "1.0.0"]
+                                     [com.cemerick/pomegranate "1.1.0" :exclusions [org.tcrawley/dynapath]]
+                                     [pl.joegreen/lambda-from-string "1.6" :exclusions [org.eclipse.jdt.core.compiler/ecj]]]}}
 
   :repositories [["atlassian" 	"https://maven.atlassian.com/3rdparty/"]]
 
