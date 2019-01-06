@@ -8,6 +8,16 @@ matrix:
         - rm "${JAVA_HOME}/lib/security/cacerts"
         - ln -s /etc/ssl/certs/java/cacerts "${JAVA_HOME}/lib/security/cacerts"
       script: lein with-profile java9+ test
+    - jdk: openjdk10
+      before_install:
+        - rm "${JAVA_HOME}/lib/security/cacerts"
+        - ln -s /etc/ssl/certs/java/cacerts "${JAVA_HOME}/lib/security/cacerts"
+      script: lein with-profile java9+ test
+    - jdk: openjdk11
+      before_install:
+        - rm "${JAVA_HOME}/lib/security/cacerts"
+        - ln -s /etc/ssl/certs/java/cacerts "${JAVA_HOME}/lib/security/cacerts"
+      script: lein with-profile java9+ test
 
 # configure notifications (email, IRC, campfire etc)
 notifications:
