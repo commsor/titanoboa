@@ -15,15 +15,10 @@
             [com.stuartsierra.component :as component]
             [clojure.tools.logging :as log]
             [titanoboa.system.local]
-            [me.raynes.fs :as fs]
-            [dynapath.util :as dp]
-            [cemerick.pomegranate :as pom]
-            [dynapath.dynamic-classpath :as dc])
+            [me.raynes.fs :as fs])
   (:import [org.eclipse.jetty.server
             Server]
-           [java.io File]
-           io.titanoboa.cloader.DynamicClassLoader
-           java.net.URLClassLoader))
+           [java.io File]))
 
 (def ^Server server nil)
 
@@ -93,16 +88,7 @@
   (symbol (str (:ns (meta v)))
           (str (:name (meta v)))))
 
-(extend DynamicClassLoader
-  dc/DynamicClasspath
-  (assoc dc/base-readable-addable-classpath
-    :add-classpath-url (fn [^DynamicClassLoader cl url]
-                         (.addURL cl url))
-    :classpath-urls #(seq (.getURLs ^URLClassLoader %))))
-
 (defn load-dependencies! []
-  (log/info "Classloader hierarchy:")
-  (mapv #(log/info (str % " - modifiable: " (pom/modifiable-classloader? %))) (pom/classloader-hierarchy))
   (when-not (deps/get-deps-path-property)
     (deps/init-dependency-file!))
   (deps/start-deps-watch! (deps/get-deps-path-property)))

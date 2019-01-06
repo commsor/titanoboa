@@ -5,9 +5,12 @@
             [com.stuartsierra.component :as component]
             [clojure-watch.core :refer [start-watch]]
             [me.raynes.fs :as fs]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [dynapath.util :as dp]
+            [dynapath.dynamic-classpath :as dc])
   (:import (java.io File FileOutputStream)
-           (clojure.lang DynamicClassLoader)))
+           io.titanoboa.cloader.DynamicClassLoader
+           java.net.URLClassLoader))
 
 (def dependencies-path-property "boa.server.dependencies.path")
 
@@ -33,135 +36,9 @@
 (defn get-deps-path-property []
   (System/getProperty dependencies-path-property))
 
-(def repl? false)
 (def lock (Object.))
 
 (def ext-deps-system nil)
-(def classloader-registry (atom [])) ;;[[dependency-map classloader]]
-
-;;#_{job-def-name {revision-number {:cl-registry {step-id classloader-idx}
-;;                                :job-def job-def-map}}}
-
-
-(defn get-base-cl []
-  (-> @classloader-registry
-      first
-      second))
-
-(defn get-deps-map [& coordinates] ;;[(symbol "ring-middleware-format") "0.7.0"]
-  (into {}
-      (mapv
-        (fn [[k v]] [(first k) (second k)])
-        (aether/resolve-dependencies :coordinates coordinates))))
-
-(defn get-conflicts [& dep-maps]
-  (->> (apply merge-with (fn [v1 v2] (if (= v1 v2)
-                            v1
-                            (if (vector? v1)
-                              (conj v1 v2)
-                              [v1 v2])))
-         dep-maps)
-  (filter (fn [[k v]] (vector? v)))))
-
-(defn dep-subset? [current-deps-map new-deps-map]
-  (clojure.set/subset? (into #{} new-deps-map) (into #{} current-deps-map)))
-
-(defn get-new-classloader []
-  (if repl?
-    @clojure.lang.Compiler/LOADER ;;@clojure.lang.Compiler/LOADER ;;(.getClassLoader clojure.lang.RT)
-    (-> (if (.isBound clojure.lang.Compiler/LOADER) @clojure.lang.Compiler/LOADER
-                                                    (if *use-context-classloader*
-                                                      (.getContextClassLoader (Thread/currentThread))
-                                                      (.getClassLoader clojure.lang.RT)))
-        (clojure.lang.DynamicClassLoader.))))
-
-(defn init-classloaders-registry! [init-deps-coordinates]
-  (locking lock
-    (when-not (empty? @classloader-registry) (throw (IllegalStateException. "classloader-registry has been already initialized!")))
-    (reset! classloader-registry [[(apply get-deps-map init-deps-coordinates) (get-new-classloader)]])))
-
-(defn find-dep-subset [coordinates]
-  "Without retrieving any dependencies via maven, this fn just scans through classloader-registry to see whether there is a obvious match for provided coordinates.
-  Returns tuple of [index classloader] or nil if no match is found."
-  (let [deps-map (into {} coordinates)]
-    (some->> @classloader-registry
-             (keep-indexed (fn [idx itm]
-                             (when (dep-subset? (get itm 0) deps-map)
-                               [idx (get itm 1)])))
-             first)))
-
-;;TODO rewrite this to also instantiate a separate RT for each classloader at the end - and then run all requires/imports in the RT (these should come also in JD along with dependencies) - OTHERWISE THIS WONT WORK!
-(defn add-dependencies! [coordinates]
-  "Resolves all dependencies of provided dependency coordinates. Then iterates through the classloader-registry and uses first classloader possible to add these dependencies.
-  If no classloader could be used a new one is created. Also corresponding dependencies map is updated in classloader-registry.
-  Returns classloader-registry index pointing to the classloader that was used."
-  (if-let [[straight-match-idx _] (find-dep-subset coordinates)]
-    straight-match-idx
-    (locking lock
-      (if (empty? @classloader-registry)
-        (throw (IllegalStateException. "classloader-registry has not been initialized!"))
-        (let [new-deps-map (apply get-deps-map coordinates)]
-          (log/info "Adding dependencies for coordinates: " coordinates)
-          (loop [i 0]   ;;let [ (map-indexed (fn [idx itm] (when (dep-subset? (first itm) new-deps-map) idx)) @classloader-registry)]
-            (let [[deps-map classloader] (get @classloader-registry i)]
-              (cond
-                (dep-subset? deps-map new-deps-map) (do
-                                                      (log/info "Matching classloader found in registry [" i "] no need to load dependencies.")
-                                                      i)
-                repl? (do
-                        (when-not (zero? i) (throw (IllegalStateException. "Multiple classloaders found in classloader-registry. In REPL mode there should be only one classloader!")))
-                        (log/info "Adding dependencies into (REPL) classloader registry [" i "]...")
-                        (pom/add-dependencies :coordinates coordinates
-                                              :classloader classloader)
-                        (swap! classloader-registry update-in [i 0] merge new-deps-map)
-                        i)
-                (empty? (get-conflicts new-deps-map deps-map)) (do
-                                                                 (log/info "Adding dependencies into classloader registry [" i "]...")
-                                                                 (pom/add-dependencies :coordinates coordinates
-                                                                                       :classloader classloader)
-                                                                 (swap! classloader-registry update-in [i 0] merge new-deps-map)
-                                                                 i)
-                (>= (inc i) (count @classloader-registry)) (let [new-cl (get-new-classloader)]
-                                                             (log/info "Adding dependencies into a new classloader; registry: [" (inc i) "]...")
-                                                             (pom/add-dependencies :coordinates coordinates
-                                                                                   :classloader new-cl)
-                                                             (swap! classloader-registry conj [new-deps-map new-cl])
-                                                             (inc i))
-                :else (recur (inc i))))))))))
-
-(defn dep-strings->symbols [dependencies]
-  (mapv (fn [[d v]]
-          [(symbol d) v])
-        dependencies))
-
-(defn load-jd-dependencies [jd]
-  "Loads dependencies for all steps of given job definition that require any (i.e. that contain any :dependencies)
-  Returns a map of {:stp-id index-from-registry-where-dependencies-were-added}"
-  (some->> jd
-      :steps
-       (filter :dependencies)
-       (map (fn [i] [(:id i) (add-dependencies! (mapv (fn [[d v]]
-                                                  [(symbol d) v])
-                                                (:dependencies i)))]))
-       (into {})))
-
-
-(defmacro with-classloader [cl & body]
-  `(binding [*use-context-classloader* true]
-     (let [cl# (.getContextClassLoader (Thread/currentThread))]
-       (try (.setContextClassLoader (Thread/currentThread) ~cl)
-            (clojure.lang.Var/pushThreadBindings {clojure.lang.Compiler/LOADER new-cl})
-            ~@body
-            (finally
-              (clojure.lang.Var/popThreadBindings)
-              (.setContextClassLoader (Thread/currentThread) cl#))))))
-
-
-(defn add-dynamic-cl!  []
-  (let [thread (Thread/currentThread)
-        cl (.getContextClassLoader thread)]
-    (when-not (instance? DynamicClassLoader cl)
-      (.setContextClassLoader thread (DynamicClassLoader. cl)))))
 
 (defn load-ext-dependencies [ext-coordinates]
   "Loads provided dependencies (in bulk) and requires/imports specified namespaces/classes.
@@ -269,3 +146,13 @@
         (not stale?)
       (finally
         (release-lock! raf l))))))
+
+(extend DynamicClassLoader
+  dc/DynamicClasspath
+  (assoc dc/base-readable-addable-classpath
+    :add-classpath-url (fn [^DynamicClassLoader cl url]
+                         (.addURL cl url))
+    :classpath-urls #(seq (.getURLs ^URLClassLoader %))))
+
+(log/debug "Classloader hierarchy:")
+(mapv #(log/debug (str % " - modifiable: " (pom/modifiable-classloader? %))) (pom/classloader-hierarchy))
