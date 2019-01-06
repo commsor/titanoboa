@@ -109,7 +109,7 @@
 
 (defn init-config! [& [cfg host]]
   (if cfg
-    (alter-var-root #'server-config (constantly cfg)
+    (alter-var-root #'server-config (constantly cfg))
     (if-let [config-path (System/getProperty "boa.server.config.path")]
       (load-file config-path)
       (if-let [cp-config (io/resource "boa-server-config.clj")]
