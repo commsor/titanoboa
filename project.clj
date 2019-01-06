@@ -15,9 +15,9 @@
                  [org.slf4j/slf4j-log4j12 "1.7.5"]
                  [org.clojure/tools.namespace "0.2.11"]
                  [org.clojure/java.classpath "0.2.3"]
-                 [org.tcrawley/dynapath "1.0.0"];;"0.2.4"
+                 [org.tcrawley/dynapath "0.2.4"];;"0.2.4"
                  [org.xeustechnologies/jcl-core "2.8"  :exclusions [org.slf4j/slf4j-api]]
-                 [com.cemerick/pomegranate "1.1.0" :exclusions [org.tcrawley/dynapath]]
+                 [com.cemerick/pomegranate "1.0.0" :exclusions [org.tcrawley/dynapath]]
                  [com.taoensso/nippy "2.14.0"]
                  [me.raynes/fs "1.4.6"]
                  [clojure-watch "0.1.14"]
@@ -40,6 +40,9 @@
                  [com.draines/postal "2.0.2"]
                  [io.titanoboa/titanoboa-launcher "0.1.0"]
                  [io.titanoboa/titanoboa-java "0.1.0"]]
+
+  :profiles {:java9+ {:dependencies [[org.tcrawley/dynapath "1.0.0"]
+                                     [com.cemerick/pomegranate "1.1.0" :exclusions [org.tcrawley/dynapath]]]}}
 
   :repositories [["atlassian" 	"https://maven.atlassian.com/3rdparty/"]]
 
