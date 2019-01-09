@@ -5,7 +5,8 @@
             [clj-http.util :as http-util]
             [me.raynes.fs :as fs]
             [titanoboa.handler :as handler]
-            [titanoboa.exp]))
+            [titanoboa.exp]
+            [titanoboa.system.local]))
 
 (def transit-opts
   "Transit read and write options."
@@ -71,7 +72,7 @@
 
 (deftest start-server
   (testing "starting up titanoboa server"
-    (server/-main server-config)
+    (server/start server-config)
     (is (instance? org.eclipse.jetty.server.Server server/server))
     (is (not-empty (titanoboa.system/live-systems)))))
 

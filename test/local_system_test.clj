@@ -1,7 +1,8 @@
 (ns local-system-test
   (:use clojure.test)
   (:require [me.raynes.fs :as fs]
-            [titanoboa.exp :as exp])
+            [titanoboa.exp :as exp]
+            [titanoboa.system.local])
   (:import (io.titanoboa.java SampleWorkloadImpl)))
 
 (def new-jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))

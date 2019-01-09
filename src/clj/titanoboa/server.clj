@@ -13,7 +13,6 @@
             [titanoboa.database :as db]
             [com.stuartsierra.component :as component]
             [clojure.tools.logging :as log]
-            [titanoboa.system.local]
             [me.raynes.fs :as fs])
   (:import [org.eclipse.jetty.server
             Server]
@@ -27,7 +26,9 @@
                (.startsWith s)) (ns.find/find-namespaces (cp/classpath))))
 
 (defn extract-zip-resource [resource unzip-to]
-  (with-open [stream (-> (ClassLoader/getSystemResourceAsStream resource)
+  (with-open [stream (-> (Thread/currentThread)
+                         (.getContextClassLoader)
+                         (.getResourceAsStream resource)
                          (java.util.zip.ZipInputStream.))]
     (loop [entry (.getNextEntry stream)]
       (if entry
@@ -121,16 +122,24 @@
   (shutdown-agents)
   (.interrupt @clojure.core.async.impl.timers/timeout-daemon))
 
-(defn -main [& [cfg host]]
-  (log/info "Starting Titanoboa server...")
-  (.addShutdownHook (Runtime/getRuntime) (Thread. shutdown-runtime!))
-  (require-extensions)
-  (load-dependencies!)
-  (init-config! cfg host)
-  (init-job-folder!  (:job-folder-path server-config))
-  (init-step-repo! (:steps-repo-path server-config))
-  (system/run-systems-onstartup! (:systems-catalogue server-config) server-config)
-  (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
-  (alter-var-root #'server
-                  (constantly (run-jetty (handler/get-ring-app server-config)
-                                         (:jetty server-config)))))
+(defn start
+  [& [cfg host]]
+  (binding [*use-context-classloader* true]
+    (let [cl (clojure.lang.DynamicClassLoader.)]
+      (.bindRoot clojure.lang.Compiler/LOADER cl)
+      (.setContextClassLoader (Thread/currentThread) cl)
+      (log/info "Starting Titanoboa server...")
+      (.addShutdownHook (Runtime/getRuntime) (Thread. shutdown-runtime!))
+      (require-extensions)
+      (load-dependencies!)
+      (init-config! cfg host)
+      (init-job-folder!  (:job-folder-path server-config))
+      (init-step-repo! (:steps-repo-path server-config))
+      (system/run-systems-onstartup! (:systems-catalogue server-config) server-config)
+      (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
+      (alter-var-root #'server
+                      (constantly (run-jetty (handler/get-ring-app server-config)
+                                             (:jetty server-config)))))))
+
+(defn -main [& args]
+  (start))
