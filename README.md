@@ -30,8 +30,7 @@ Titanoboa is **designed for both java & clojure developers** and we are striving
 
 
 ### Prerequisites
-Java 8 JRE or JDK. Almost all of the functionality works on Java 8 and higher, however Java Lambda support and external maven dependencies (loaded during runtime) has been tested only on Java 8. 
-External maven dependencies will not load in Java 9 and higher - this is currently beeing worked on.
+Java 8 or higher.
 
 ### Building from the repository
 Titanoboa uses leiningen for dependency management, so if you don't have it download it from https://leiningen.org/ and follow its installation instructions.
@@ -44,6 +43,10 @@ generate uberjar:
 
     lein uberjar
     
+in case that your target platform is Java 8 JRE use following profile:
+
+    lein with-profile java8jre uberjar
+
 this will generate a big jar file (aka uberjar) in the _target_ directory.
 
 If you want to use GUI you can clone the titanoboa-gui repository as well:
