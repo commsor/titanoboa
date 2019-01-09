@@ -1,6 +1,5 @@
 (ns titanoboa.server
-  (:gen-class
-    :implements [io.titanoboa.Startable])
+  (:gen-class)
   (:require [clojure.repl]
             [clojure.tools.namespace.find :as ns.find]
             [clojure.java.io :as io]
@@ -14,7 +13,6 @@
             [titanoboa.database :as db]
             [com.stuartsierra.component :as component]
             [clojure.tools.logging :as log]
-            [titanoboa.system.local]
             [me.raynes.fs :as fs])
   (:import [org.eclipse.jetty.server
             Server]
@@ -126,20 +124,22 @@
 
 (defn start
   [& [cfg host]]
-   (log/info "Starting Titanoboa server...")
-   (.addShutdownHook (Runtime/getRuntime) (Thread. shutdown-runtime!))
-   (require-extensions)
-   (load-dependencies!)
-   (init-config! cfg host)
-   (init-job-folder!  (:job-folder-path server-config))
-   (init-step-repo! (:steps-repo-path server-config))
-   (system/run-systems-onstartup! (:systems-catalogue server-config) server-config)
-   (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
-   (alter-var-root #'server
-                   (constantly (run-jetty (handler/get-ring-app server-config)
-                                          (:jetty server-config)))))
-(defn -start [this]
-  (start))
+  (binding [*use-context-classloader* true]
+    (let [cl (clojure.lang.DynamicClassLoader.)]
+      (.bindRoot clojure.lang.Compiler/LOADER cl)
+      (.setContextClassLoader (Thread/currentThread) cl)
+      (log/info "Starting Titanoboa server...")
+      (.addShutdownHook (Runtime/getRuntime) (Thread. shutdown-runtime!))
+      (require-extensions)
+      (load-dependencies!)
+      (init-config! cfg host)
+      (init-job-folder!  (:job-folder-path server-config))
+      (init-step-repo! (:steps-repo-path server-config))
+      (system/run-systems-onstartup! (:systems-catalogue server-config) server-config)
+      (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
+      (alter-var-root #'server
+                      (constantly (run-jetty (handler/get-ring-app server-config)
+                                             (:jetty server-config)))))))
 
 (defn -main [& args]
   (start))

@@ -5,7 +5,8 @@
             [clj-http.util :as http-util]
             [me.raynes.fs :as fs]
             [titanoboa.handler :as handler]
-            [titanoboa.exp]))
+            [titanoboa.exp]
+            [titanoboa.system.local]))
 
 (def transit-opts
   "Transit read and write options."

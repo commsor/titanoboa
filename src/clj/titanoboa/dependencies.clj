@@ -8,9 +8,7 @@
             [clojure.java.io :as io]
             [dynapath.util :as dp]
             [dynapath.dynamic-classpath :as dc])
-  (:import (java.io File FileOutputStream)
-           io.titanoboa.cloader.DynamicClassLoader
-           java.net.URLClassLoader))
+  (:import (java.io File FileOutputStream)))
 
 (def dependencies-path-property "boa.server.dependencies.path")
 
@@ -147,12 +145,7 @@
       (finally
         (release-lock! raf l))))))
 
-(extend DynamicClassLoader
-  dc/DynamicClasspath
-  (assoc dc/base-readable-addable-classpath
-    :add-classpath-url (fn [^DynamicClassLoader cl url]
-                         (.addURL cl url))
-    :classpath-urls #(seq (.getURLs ^URLClassLoader %))))
-
-(log/debug "Classloader hierarchy:")
-(mapv #(log/debug (str % " - modifiable: " (pom/modifiable-classloader? %))) (pom/classloader-hierarchy))
+(defn log-cl-hierarchy []
+  (when (log/enabled? :info)
+    (log/info "Classloader hierarchy:")
+    (mapv #(log/info (str % " - modifiable: " (pom/modifiable-classloader? %))) (pom/classloader-hierarchy))))

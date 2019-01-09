@@ -1,3 +1,4 @@
+;;NOTE: this is a sample used for demonstration and testing purposes
 {:coordinates [[amazonica "0.3.117" :exclusions [com.amazonaws/aws-java-sdk
                                                  com.amazonaws/amazon-kinesis-client
                                                  com.taoensso/nippy]]
