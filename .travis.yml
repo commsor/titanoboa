@@ -19,3 +19,4 @@ matrix:
 notifications:
   email:
     - "miro@titanoboa.io"
+    

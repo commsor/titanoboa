@@ -29,66 +29,11 @@ Titanoboa's [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting-Started-wi
 Titanoboa is **designed for both java & clojure developers** and we are striving to make it **usable even for java developers with no prior clojure knowledge**.
 
 
-## Installation 
-Download the latest release from https://www.titanoboa.io/titanoboa.jar. It is a single jar file.
-
-    curl --remote-name https://www.titanoboa.io/titanoboa.jar
-
-__Note__: _If you are intending on running titanoboa server on java JDK instead of JRE, download a distribution for JDK instead:_
-
-    curl --remote-name https://www.titanoboa.io/titanoboa4jdk.jar
-
-then execute the jar:
-    
-     java -jar titanoboa.jar
-
-In your console you should see bunch of log messages and ultimately you will see
-     
-     INFO [main] - Started @3238ms
-
-which means the server started successfully. By default the server and will start on port 3000.
-
-Congratulations! You have just started your titanoboa server!
-
-### Running server with GUI
-
-Titanoboa GUI is great place for developing and designing new workflows as well as for managing their execution and monitoring the status of your server(s).
-It is also a great starting point for evaluating and exploring the titanoboa platform.
-
-__The GUI is free for non-commercial use only__, so if you just want to explore titanoboa it is the best place to start:
-
-Download the latest release from https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa.jar. It is a single jar file, the GUI is already in it.
-
-    curl --remote-name https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa.jar
-
-__Note__: _If you are intending on running titanoboa server on java JDK instead of JRE, download a distribution for JDK instead:_
-
-    curl --remote-name https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa4jdk.jar
-
-then execute the jar:
-    
-     java -jar titanoboa.jar
-
-In your console you should see bunch of log messages and ultimately you will see
-     
-     INFO [main] - Started @3478ms
-
-which means the server started successfully. By default the server and the GUI will start on port 3000 so you can open http://localhost:3000 in your browser to access it.
-
-Now you can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
-
 ### Prerequisites
-Java 8 JRE or JDK and higher. Almost all of the functionality works on Java 8 and higher, however Java Lambda support has been tested only on Java 8.
-
-### Server Configuration
-Server configuration and external dependencies file can be specified by system properties `boa.server.config.path` and `boa.server.dependencies.path`:
-
-     java -Dboa.server.config.path=boa_server_config_local.clj -Dboa.server.dependencies.path=ext-dependencies.clj -jar titanoboa.jar
-     
-See [Server configuration wiki](https://github.com/mikub/titanoboa/wiki/Server-Configuration) for more details.
+Java 8 JRE or JDK. Almost all of the functionality works on Java 8 and higher, however Java Lambda support and external maven dependencies (loaded during runtime) has been tested only on Java 8. 
+External maven dependencies will not load in Java 9 and higher - this is currently beeing worked on.
 
 ### Building from the repository
-In case you don't want to download distributed release from our web page but to build it from the repository:
 Titanoboa uses leiningen for dependency management, so if you don't have it download it from https://leiningen.org/ and follow its installation instructions.
 
 Clone this repository
@@ -104,6 +49,8 @@ this will generate a big jar file (aka uberjar) in the _target_ directory.
 If you want to use GUI you can clone the titanoboa-gui repository as well:
 
     git clone https://github.com/mikub/titanoboa-gui
+    
+**Note**: _The GUI is free for non-commercial use only_
 
 then merge GUI's _public_ folder into the uberjar:
 
@@ -113,8 +60,26 @@ then execute the jar:
     
      java -jar titanoboa.jar
 
+In your console you should see bunch of log messages and ultimately you will see
+     
+     INFO [main] - Started @3238ms
+
+which means the server started successfully. By default the server and will start on port 3000.
+
+Congratulations! You have just started your titanoboa server!
+
+If you included GUI you can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
+
+### Server Configuration
+Server configuration and external dependencies file can be specified by system properties `boa.server.config.path` and `boa.server.dependencies.path`:
+
+     java -Dboa.server.config.path=boa_server_config_local.clj -Dboa.server.dependencies.path=ext-dependencies.clj -jar titanoboa.jar
+     
+See [Server configuration wiki](https://github.com/mikub/titanoboa/wiki/Server-Configuration) for more details.
+
+
 ## Getting Started
-Before you start, it might be a good idea to get familiar with titanoboa's [concepts](https://github.com/mikub/titanoboa/wiki).
+Before you start, it might be a good idea to get familiar with titanoboa's [concepts](https://github.com/mikub/titanoboa/wiki) & [workflow design principles](https://github.com/mikub/titanoboa/wiki/Designing-Workflows).
 
 ### Develop & Test Workflows with titanoboa GUI
 Titanoboa GUI is a good place to start devloping and testing workflows:
@@ -125,7 +90,7 @@ Titanoboa GUI is a good place to start devloping and testing workflows:
 
 See an example in our wiki on how to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
-### Develop & Test Workflows Locally in Your Clojure REPL
+### <img width="42" height="42" src="https://github.com/mikub/titanoboa/blob/master/doc/clojure.svg"> Develop & Test Workflows Locally in Your Clojure REPL
 If you cannot use GUI and do not want to use REST API, you can as well just start REPL locally and play with titanoboa there.
 Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 
@@ -291,7 +256,7 @@ When you are done testing you may want to stop the system:
  INFO [nREPL-worker-3] - Stopping action processor pool...
  INFO [nREPL-worker-3] - Stopping CacheEvictionComponent thread [ CacheEvictionComponent thread 0 ]...
  ```
- ### Developing custom workflow steps in Java <img width="48" height="48" src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg" style="position:relative;top:20px;">
+ ### <img width="48" height="48" src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg"> Developing custom workflow steps in Java 
  Titanoboa is also meant to be used by java developers who (apart from few concepts like [EDN](https://github.com/edn-format/edn)) do not need to be familiar with clojure. If you do not want to use clojure [java interop](https://clojure.org/reference/java_interop) to instantiate your objects and/or invoke your methods, you also have anothter options:
  
  To create a custom workflow step, simply add a (maven) dependency on [![Clojars Project](https://img.shields.io/clojars/v/io.titanoboa/titanoboa-java.svg)](https://clojars.org/io.titanoboa/titanoboa-java) to your project.
@@ -301,7 +266,7 @@ When you are done testing you may want to stop the system:
     public Object invoke (Map properties);
 }
  ```
- If you then add your project (or the corresponding maven artifact) to titanoboa's [external dependencies](https://github.com/mikub/titanoboa/wiki/Server-Configuration#external-dependencies), you can use your class name in the workflow-fn field. The class will be automatically intantiated as a singleton bean (so it has to have a constructor with no argumet) and all subsequent references to it from any workflow-fn will invoke its __invoke__ method:
+ If you then add your project (or the corresponding maven artifact) to titanoboa's [external dependencies](https://github.com/mikub/titanoboa/wiki/Server-Configuration#external-dependencies), you can use your class name in the workflow-fn field. The class will be automatically instantiated as a singleton bean (so it has to have a constructor with no argumet) and all subsequent references to it from any workflow-fn will invoke its __invoke__ method:
  
  ```clojure
  :workload-fn io.titanoboa.java.SampleWorkloadImpl
