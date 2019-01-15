@@ -1,0 +1,152 @@
+Titanoboa uses following 3rd party OS Software with following licenses:
+com.taoensso/timbre - 4.7.0 - Eclipse Public License
+com.sun.mail/javax.mail - 1.5.5 - CDDL/GPLv2+CE
+commons-io - 2.6 - Apache License, Version 2.0
+org.apache.maven/maven-model-builder - 3.5.3 - Apache License, Version 2.0
+org.apache.maven/maven-builder-support - 3.5.3 - Apache License, Version 2.0
+org.iq80.snappy/snappy - 0.4 - Apache License 2.0
+clojure-watch - 0.1.14 - BSD 3-Clause
+clojure-complete - 0.2.5 - Eclipse Public License
+org.msgpack/msgpack - 0.6.12 - The Apache Software License, Version 2.0
+org.clojure/tools.reader - 1.3.2 - Eclipse Public License 1.0
+org.apache.httpcomponents/httpclient - 4.5.3 - Apache License, Version 2.0
+instaparse - 1.4.0 - Eclipse Public License
+watchtower - 0.1.1 - unknown
+org.bouncycastle/bcpkix-jdk15on - 1.58 - Bouncy Castle Licence
+org.apache.httpcomponents/httpcore-nio - 4.4.6 - Apache License, Version 2.0
+tigris - 0.1.1 - Eclipse Public License
+org.apache.httpcomponents/httpcore - 4.4.9 - Apache License, Version 2.0
+org.apache.maven/maven-model - 3.5.3 - Apache License, Version 2.0
+org.apache.maven.resolver/maven-resolver-transport-wagon - 1.0.3 - Apache License, Version 2.0
+org.slf4j/slf4j-log4j12 - 1.7.5 - MIT License
+potemkin - 0.4.5 - MIT License
+clj-http - 3.9.1 - The MIT License
+org.clojure/tools.macro - 0.1.5 - Eclipse Public License 1.0
+ring/ring-servlet - 1.6.3 - The MIT License
+org.apache.maven.resolver/maven-resolver-util - 1.1.1 - Apache License, Version 2.0
+ring/ring-ssl - 0.2.1 - The MIT License
+org.clojure/clojure - 1.10.0 - Eclipse Public License 1.0
+com.cognitect/transit-clj - 0.8.290 - The Apache Software License, Version 2.0
+nrepl - 0.5.3 - Eclipse Public License
+com.taoensso/nippy - 2.14.0 - Eclipse Public License
+ring/ring-headers - 0.1.3 - The MIT License
+javax.mail/javax.mail-api - 1.5.5 - CDDL/GPLv2+CE
+com.taoensso/truss - 1.5.0 - Eclipse Public License
+com.google.guava/guava - 20.0 - The Apache Software License, Version 2.0
+nrepl/bencode - 1.0.0 - Eclipse Public License
+ring/ring-codec - 1.0.1 - The MIT License
+org.apache.maven/maven-repository-metadata - 3.5.3 - Apache License, Version 2.0
+buddy/buddy-core - 1.4.0 - Apache 2.0
+net.jpountz.lz4/lz4 - 1.3 - The Apache Software License, Version 2.0
+org.apache.maven/maven-resolver-provider - 3.5.3 - Apache License, Version 2.0
+org.clojure/java.jdbc - 0.7.1 - Eclipse Public License 1.0
+buddy/buddy-auth - 2.1.0 - Apache 2.0
+buddy/buddy-sign - 2.2.0 - Apache 2.0
+org.eclipse.jetty/jetty-util - 9.2.21.v20170120 - Apache Software License - Version 2.0
+ring - 1.6.3 - The MIT License
+commons-fileupload - 1.3.3 - Apache License, Version 2.0
+org.codehaus.plexus/plexus-utils - 3.1.0 - Apache License, Version 2.0
+com.cemerick/pomegranate - 1.1.0 - Eclipse Public License 1.0
+com.mchange/mchange-commons-java - 0.2.11 - GNU Lesser General Public License, Version 2.1
+org.apache.maven.wagon/wagon-provider-api - 3.0.0 - Apache License, Version 2.0
+javax.activation/activation - 1.1 - Common Development and Distribution License (CDDL) v1.0
+org.apache.maven.wagon/wagon-http - 3.0.0 - Apache License, Version 2.0
+org.eclipse.jetty/jetty-http - 9.2.21.v20170120 - Apache Software License - Version 2.0
+org.clojure/tools.analyzer - 0.6.9 - Eclipse Public License 1.0
+org.apache.maven.resolver/maven-resolver-api - 1.1.1 - Apache License, Version 2.0
+org.tukaani/xz - 1.6 - Public Domain
+org.codehaus.plexus/plexus-component-annotations - 1.7.1 - Apache License, Version 2.0
+org.slf4j/slf4j-api - 1.7.5 - MIT License
+org.bouncycastle/bcprov-jdk15on - 1.58 - Bouncy Castle Licence
+javax.servlet/servlet-api - 2.5 - unknown
+org.apache.maven.resolver/maven-resolver-transport-http - 1.0.3 - Apache License, Version 2.0
+org.apache.commons/commons-lang3 - 3.6 - Apache License, Version 2.0
+ring/ring-core - 1.6.3 - The MIT License
+com.cognitect/transit-java - 0.8.316 - The Apache Software License, Version 2.0
+ns-tracker - 0.3.1 - unknown
+com.lambdaworks/scrypt - 1.4.0 - Apache License, Version 2.0
+org.clojure/java.classpath - 0.2.3 - Eclipse Public License 1.0
+net.java.dev.jna/jna - 4.2.1 - LGPL, version 2.1
+org.apache.maven.resolver/maven-resolver-connector-basic - 1.0.3 - Apache License, Version 2.0
+ring-middleware-format - 0.7.2 - Eclipse Public License - v 1.0
+com.fasterxml.jackson.dataformat/jackson-dataformat-cbor - 2.7.5 - The Apache Software License, Version 2.0
+buddy/buddy-hashers - 1.3.0 - Apache 2.0
+com.draines/postal - 2.0.2 - MIT
+medley - 0.8.2 - Eclipse Public License
+org.apache.maven.resolver/maven-resolver-spi - 1.1.1 - Apache License, Version 2.0
+org.tcrawley/dynapath - 1.0.0 - Eclipse Public License
+crypto-equality - 1.0.0 - Eclipse Public License
+clj-time - 0.14.0 - MIT License
+org.jsoup/jsoup - 1.7.2 - The MIT License
+commons-codec - 1.11 - Apache License, Version 2.0
+org.apache.httpcomponents/httpmime - 4.5.5 - Apache License, Version 2.0
+org.clojure/core.memoize - 0.5.9 - Eclipse Public License 1.0
+com.googlecode.json-simple/json-simple - 1.1.1 - The Apache Software License, Version 2.0
+hiccup - 1.0.5 - unknown
+clj-tuple - 0.2.2 - MIT License
+ring-server - 0.4.0 - Eclipse Public License
+org.flatland/ordered - 1.5.7 - Eclipse Public License - v 1.0
+com.stuartsierra/dependency - 0.2.0 - Eclipse Public License
+javax.inject - 1 - The Apache Software License, Version 2.0
+ring-refresh - 0.1.2 - Eclipse Public License
+org.flatland/useful - 0.11.6 - Eclipse Public License - v 1.0
+org.xeustechnologies/jcl-core - 2.8 - The Apache Software License, Version 2.0
+slingshot - 0.12.2 - Eclipse Public License 1.0
+cheshire - 5.6.3 - The MIT License
+circleci/clj-yaml - 0.5.6 - Eclipse Public License - v 1.0
+buddy - 2.0.0 - Apache 2.0
+com.fasterxml.jackson.core/jackson-core - 2.7.5 - The Apache Software License, Version 2.0
+org.clojure/tools.logging - 0.4.1 - Eclipse Public License 1.0
+honeysql - 0.9.1 - Eclipse Public License
+me.raynes/fs - 1.4.6 - Eclipse Public License - v 1.0
+org.objenesis/objenesis - 2.1 - Apache 2
+org.slf4j/jcl-over-slf4j - 1.6.2 - MIT License
+com.stuartsierra/component - 0.3.1 - The MIT License
+com.ibm.icu/icu4j - 58.2 - Unicode/ICU License
+org.clojure/tools.namespace - 0.2.11 - Eclipse Public License 1.0
+postgresql - 9.4.1208-jdbc42-atlassian-hosted - unknown
+org.apache.commons/commons-compress - 1.8 - The Apache Software License, Version 2.0
+org.apache.maven.wagon/wagon-http-shared - 3.0.0 - Apache License, Version 2.0
+io.methvin/directory-watcher - 0.8.0 - Apache-2.0
+joda-time - 2.9.7 - Apache 2
+org.ow2.asm/asm-all - 4.2 - BSD
+ring/ring-anti-forgery - 1.0.0 - The MIT License
+org.clojure/data.priority-map - 0.0.7 - Eclipse Public License 1.0
+clojure-msgpack - 1.2.0 - The MIT License (MIT)
+org.apache.maven.resolver/maven-resolver-transport-file - 1.0.3 - Apache License, Version 2.0
+org.yaml/snakeyaml - 1.13 - Apache License Version 2.0
+pl.joegreen/lambda-from-string - 1.6 - MIT License
+clojurewerkz/scrypt - 1.2.0 - unknown
+crypto-random - 1.2.0 - Eclipse Public License
+javax.servlet/javax.servlet-api - 3.1.0 - CDDL + GPLv2 with classpath exception
+com.fasterxml.jackson.dataformat/jackson-dataformat-smile - 2.7.5 - The Apache Software License, Version 2.0
+riddley - 0.1.12 - MIT License
+funcool/cuerdas - 2.0.3 - BSD (2-Clause)
+org.kamranzafar.commons/object-cloner - 0.1 - Apache Software License
+org.codehaus.plexus/plexus-interpolation - 1.24 - Apache License, Version 2.0
+commons-logging - 1.2 - The Apache Software License, Version 2.0
+org.apache.httpcomponents/httpclient-cache - 4.5.5 - Apache License, Version 2.0
+compojure - 1.5.2 - Eclipse Public License
+cglib/cglib-nodep - 2.2 - ASF 2.0
+org.clojure/core.specs.alpha - 0.2.44 - Eclipse Public License 1.0
+log4j - 1.2.17 - The Apache Software License, Version 2.0
+io.titanoboa/titanoboa-java - 0.1.0 - unknown
+ring/ring-devel - 1.6.3 - The MIT License
+io.aviso/pretty - 0.1.28 - Apache Sofware License 2.0
+ring/ring-defaults - 0.1.5 - The MIT License
+com.taoensso/encore - 2.93.0 - Eclipse Public License
+org.javassist/javassist - 3.18.1-GA - MPL 1.1
+com.mchange/c3p0 - 0.9.5.2 - GNU Lesser General Public License, Version 2.1
+org.clojure/core.cache - 0.6.5 - Eclipse Public License 1.0
+org.apache.httpcomponents/httpasyncclient - 4.1.3 - Apache License, Version 2.0
+ring/ring-jetty-adapter - 1.6.3 - The MIT License
+org.clojure/core.async - 0.4.490 - Eclipse Public License 1.0
+org.eclipse.jetty/jetty-server - 9.2.21.v20170120 - Apache Software License - Version 2.0
+org.clojure/spec.alpha - 0.2.176 - Eclipse Public License 1.0
+clout - 2.1.2 - Eclipse Public License
+org.apache.maven/maven-artifact - 3.5.3 - Apache License, Version 2.0
+clj-stacktrace - 0.2.8 - MIT
+org.apache.maven.resolver/maven-resolver-impl - 1.1.1 - Apache License, Version 2.0
+org.eclipse.jetty/jetty-io - 9.2.21.v20170120 - Apache Software License - Version 2.0
+org.clojure/tools.analyzer.jvm - 0.7.2 - Eclipse Public License 1.0
+

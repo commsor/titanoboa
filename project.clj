@@ -7,7 +7,7 @@
                  [pl.joegreen/lambda-from-string "1.6" :exclusions [org.eclipse.jdt.core.compiler/ecj]]
                  [com.stuartsierra/component "0.3.1"]
                  [org.clojure/core.async "0.4.490"]
-                 [org.clojure/tools.logging "0.3.1"]
+                 [org.clojure/tools.logging "0.4.1"]
                  [log4j/log4j "1.2.17" :exclusions [javax.mail/mail
                                                     javax.jms/jms
                                                     com.sun.jdmk/jmxtools
@@ -42,6 +42,10 @@
                  [com.draines/postal "2.0.2"]
                  [io.titanoboa/titanoboa-java "0.1.0"]]
 
+  :plugins [[lein-libdir "0.1.1"]
+            [lein-licenses "0.2.2"]
+            [io.titanoboa/lein-ubersource "0.1.2"]]
+
   :profiles {:java8jre {:dependencies [[pl.joegreen/lambda-from-string "1.6"]
                                        [org.tcrawley/dynapath "0.2.4"]
                                        [com.cemerick/pomegranate "1.0.0" :exclusions [org.tcrawley/dynapath]]]}
@@ -50,9 +54,12 @@
 
   :repositories [["atlassian" 	"https://maven.atlassian.com/3rdparty/"]]
 
-  :uberjar-name "titanoboa.jar"
+  :jar-name "titanoboa.jar"
+  :target-path "build/%s/"
+  :libdir-path "lib"
   :main titanoboa.server ;;titanoboa.system
   :aot [titanoboa.server]
   :clean-targets ^{:protect false} [:target-path]
 
-  :source-paths ["src/cljc" "src/clj" "src/script"])
+  :source-paths ["src/cljc" "src/clj" "src/script"]
+  :aliases {"package" ["do" "clean," "jar," "libdir"]})
