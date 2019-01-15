@@ -260,7 +260,7 @@ When you are done testing you may want to stop the system:
  INFO [nREPL-worker-3] - Stopping CacheEvictionComponent thread [ CacheEvictionComponent thread 0 ]...
  ```
  ### <img width="48" height="48" src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg"> Developing custom workflow steps in Java 
- Titanoboa is also meant to be used by java developers who (apart from few concepts like [EDN](https://github.com/edn-format/edn)) do not need to be familiar with clojure. If you do not want to use clojure [java interop](https://clojure.org/reference/java_interop) to instantiate your objects and/or invoke your methods, you also have anothter options:
+ Titanoboa is also meant to be used by java developers who (apart from few concepts like [EDN](https://github.com/edn-format/edn)) do not need to be familiar with clojure. If you do not want to use clojure [java interop](https://clojure.org/reference/java_interop) to instantiate your objects and/or invoke your methods, you also have other options:
  
  To create a custom workflow step, simply add a (maven) dependency on [![Clojars Project](https://img.shields.io/clojars/v/io.titanoboa/titanoboa-java.svg)](https://clojars.org/io.titanoboa/titanoboa-java) to your project.
  and create a class that will implement [io.titanoboa.java.IWorkloadFn](https://github.com/mikub/titanoboa-java/blob/master/src/main/java/io/titanoboa/java/IWorkloadFn.java) interface:
