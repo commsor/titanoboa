@@ -45,7 +45,7 @@ run lein package:
     
 in case that your target platform is Java 8 JRE use following profile:
 
-    lein with-profile package
+    lein with-profile java8jre package
 
 this will generate titanoboa jar file in the _build_ directory and will also download all libraries into _lib_ folder.
 
