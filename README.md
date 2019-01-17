@@ -287,6 +287,6 @@ To rapidly development and test new steps, you can also type a lambda function i
 [![]( https://github.com/mikub/titanoboa/blob/master/doc/java-lambda-workload.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/java-lambda-workload.png )
 
 ## License
-Copyright © Miro Kubicek
+Copyright © Miroslav Kubicek
 
 Titanoboa is dual-licensed under either AGPL license or a Commercial license.
