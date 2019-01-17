@@ -100,7 +100,7 @@ Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 [![Clojars Project](https://img.shields.io/clojars/v/io.titanoboa/titanoboa.svg)](https://clojars.org/io.titanoboa/titanoboa)
 
 ```clojure
-[io.titanoboa/titanoboa "0.7.2"]
+[io.titanoboa/titanoboa "0.7.3"]
 ```
 
 ```xml
