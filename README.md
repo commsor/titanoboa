@@ -39,15 +39,15 @@ Clone this repository
 
     git clone https://github.com/mikub/titanoboa
     
-generate uberjar:
+run lein package:
 
-    lein uberjar
+    lein package
     
 in case that your target platform is Java 8 JRE use following profile:
 
-    lein with-profile java8jre uberjar
+    lein with-profile java8jre package
 
-this will generate a big jar file (aka uberjar) in the _target_ directory.
+this will generate titanoboa jar file in the _build_ directory and will also download all libraries into _lib_ folder.
 
 If you want to use GUI you can clone the titanoboa-gui repository as well:
 
@@ -57,11 +57,11 @@ If you want to use GUI you can clone the titanoboa-gui repository as well:
 
 then merge GUI's _public_ folder into the uberjar:
 
-    zip -r -g titanoboa.jar public
+    zip -r -g ./build/titanoboa.jar public
 
-then execute the jar:
+then run the start script:
     
-     java -jar titanoboa.jar
+     ./start.sh
 
 In your console you should see bunch of log messages and ultimately you will see
      
