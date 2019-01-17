@@ -1,4 +1,4 @@
-(defproject io.titanoboa/titanoboa "0.7.3"
+(defproject io.titanoboa/titanoboa "0.7.4-SNAPSHOT"
   :description "titanoboa.io is fully distributed, highly scalable and fault tolerant workflow orchestration platform"
   :url "http://titanoboa.io"
   :license {:name "GNU Affero General Public License"
