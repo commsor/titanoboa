@@ -107,7 +107,7 @@ Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 <dependency>
   <groupId>io.titanoboa</groupId>
   <artifactId>titanoboa</artifactId>
-  <version>0.7.2</version>
+  <version>0.7.3</version>
 </dependency>
 ```
 then fire off a repl and start:
