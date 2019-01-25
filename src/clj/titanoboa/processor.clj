@@ -394,7 +394,7 @@
         exception (:error result-map)
         message-end (str "Step [" (:id step) "] finshed with result ["result"]\n")
         _ (log/debug message-end)
-        next-step (when-not (dispatch4join? job) (find-next-step step result))
+        next-step (when-not (and (= :join (:supertype step)) (dispatch4join? job)) (find-next-step step result))
         _ (log/debug "Next step is " next-step)
         [retrying? step-retries] (if (and error? (not next-step))
                                    (assess4retry step step-retries)
@@ -503,11 +503,18 @@
                                 (merge props (if (or step-end end) {:end (or step-end end)
                                                                     :duration (- (.getTime (or step-end end)) (.getTime (:step-start job)))} {})))))
 
-(defn orchestrate-join! [{:keys [thread-stack parallel-threads] :as job}]
+(defn orchestrate-join! [{:keys [thread-stack parallel-threads step] :as job}]
   "To be performed from :main job thread. Orchestrates merge of other job threads (merges their properties into the current :main's).
   Returns job with merged properties and with thread stack and parallel-threads stack that do not contain data of the threads that were merged
   - i.e. are either empty or contain other outer threads that were not merged/dispatched yet."
-  (let [threads2merge (-> parallel-threads
+  (let [merge-with-fn (if-let [f (-> (get-in step [:properties :merge-with-fn])
+                                     exp/eval-property)]
+                        #(merge-with (fn [i1 i2]
+                                       (try (f i1 i2)
+                                            (catch Exception e
+                                              i2))) %1 %2)
+                        merge)
+        threads2merge (-> parallel-threads
                           last
                           second
                         (dissoc :main)
@@ -532,7 +539,7 @@
         (if job-thread
           (do (log/info "Merging job with thread stack [" (:thread-stack job-thread) "] into the main thread...")
             (recur (-> main-thread-job
-                       (update :properties merge (:properties job-thread))
+                       (update :properties merge-with-fn (:properties job-thread))
                        (update :history concat (:history job-thread))
                        (update :history #(into [] %))
                        (assoc :state (if (= :error (:state job-thread)) :error (:state main-thread-job)))
