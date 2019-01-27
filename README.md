@@ -63,7 +63,7 @@ Congratulations! You have just started your titanoboa server!
 You can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
 ## Installing server without GUI
-Download the latest release from http://www.titanoboa.io/distributions/titanoboa.zip .
+Download the latest release from https://www.titanoboa.io/distributions/titanoboa.zip .
 
     curl --remote-name https://www.titanoboa.io/distributions/titanoboa.zip
 
