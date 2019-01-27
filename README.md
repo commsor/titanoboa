@@ -32,6 +32,61 @@ Titanoboa is **designed for both java & clojure developers** and we are striving
 ### Prerequisites
 Java 8 or higher.
 
+## Installation 
+We suggest giving titanoboa's GUI a try as well since it is the best starting point!  
+Download titanoboa's distribution including its GUI from https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa_gui_non-commercial_use_only.zip 
+
+    curl --remote-name https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa_gui_non-commercial_use_only.zip
+
+**Note**: _The GUI is free for non-commercial use only_
+
+__Note__: _If you are intending on running titanoboa server on java 8 JRE, download a distribution for JRE instead:_
+
+    curl --remote-name https://www.titanoboa.io/distributions/gui-non-commercial-use-only/titanoboa_jre_gui_non-commercial_use_only.zip
+
+Unzip the file:
+    
+    unzip titanoboa_gui_non-commercial_use_only.zip
+
+then execute the start script:
+    
+     ./start
+
+In your console you should see bunch of log messages and ultimately you will see
+     
+     INFO [main] - Started @2338ms
+
+which means the server started successfully. by default the server and the GUI will start on port 3000 so you can open http://localhost:3000 in your browser.
+
+Congratulations! You have just started your titanoboa server!
+
+You can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
+
+## Installing server without GUI
+Download the latest release from http://www.titanoboa.io/distributions/titanoboa.zip .
+
+    curl --remote-name https://www.titanoboa.io/distributions/titanoboa.zip
+
+__Note__: _If you are intending on running titanoboa server on java 8 JRE, download a distribution for JRE instead:_
+
+    curl --remote-name https://www.titanoboa.io/distributions/titanoboa_jre.zip
+    
+Unzip the file:
+
+    unzip titanoboa.zip
+
+then execute the start script:
+    
+     ./start
+
+In your console you should see bunch of log messages and ultimately you will see
+     
+     INFO [main] - Started @3016ms
+     
+which means the server started successfully. By default the server will start on port 3000.
+
+Congratulations! You have just started your titanoboa server!
+     
 ### Building from the repository
 Titanoboa uses leiningen for dependency management, so if you don't have it download it from https://leiningen.org/ and follow its installation instructions.
 
@@ -61,15 +116,15 @@ then merge GUI's _public_ folder into the uberjar:
 
 then run the start script:
     
-     ./start.sh
+     ./start
 
 In your console you should see bunch of log messages and ultimately you will see
      
      INFO [main] - Started @3238ms
 
-which means the server started successfully. By default the server and will start on port 3000.
+which means the server started successfully. By default the server will start on port 3000.
 
-Congratulations! You have just started your titanoboa server!
+Congratulations! You have just built & started your titanoboa server!
 
 If you included GUI you can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
