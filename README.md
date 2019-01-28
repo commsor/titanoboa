@@ -56,7 +56,7 @@ In your console you should see bunch of log messages and ultimately you will see
      
      INFO [main] - Started @2338ms
 
-which means the server started successfully. by default the server and the GUI will start on port 3000 so you can open http://localhost:3000 in your browser.
+which means the server started successfully. By default both the server and the GUI will start on port 3000 and you can open http://localhost:3000 in your browser.
 
 Congratulations! You have just started your titanoboa server!
 
@@ -71,21 +71,7 @@ __Note__: _If you are intending on running titanoboa server on java 8 JRE, downl
 
     curl --remote-name https://www.titanoboa.io/distributions/titanoboa_jre.zip
     
-Unzip the file:
-
-    unzip titanoboa.zip
-
-then execute the start script:
-    
-     ./start
-
-In your console you should see bunch of log messages and ultimately you will see
-     
-     INFO [main] - Started @3016ms
-     
-which means the server started successfully. By default the server will start on port 3000.
-
-Congratulations! You have just started your titanoboa server!
+And then follow the instructions above.
      
 ### Building from the repository
 Titanoboa uses leiningen for dependency management, so if you don't have it download it from https://leiningen.org/ and follow its installation instructions.
