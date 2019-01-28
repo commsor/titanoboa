@@ -71,7 +71,7 @@ __Note__: _If you are intending on running titanoboa server on java 8 JRE, downl
 
     curl --remote-name https://www.titanoboa.io/distributions/titanoboa_jre.zip
     
-And then follow the instructions above.
+And then follow the instructions above. By default the server will start on port 3000.
      
 ### Building from the repository
 Titanoboa uses leiningen for dependency management, so if you don't have it download it from https://leiningen.org/ and follow its installation instructions.
