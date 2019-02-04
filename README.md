@@ -28,8 +28,18 @@ Titanoboa's [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting-Started-wi
 <img width="42" height="42" src="https://github.com/mikub/titanoboa/blob/master/doc/clojure.svg"><img width="54" height="54" src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg"><br/>
 Titanoboa is **designed for both java & clojure developers** and we are striving to make it **usable even for java developers with no prior clojure knowledge**.
 
+## Predefined Steps
+Though it is easy to rapidly develop new workflow steps directly from GUI, there is a number of ready-made steps and tasklets in [this repository](https://github.com/mikub/titanoboa-tasklets).
+Some of the steps included are: 
+- AWS (EC2, S3, SNS, SQS, SES)
+- Http Client
+- Smtp Client
+- Sftp
+- PDF Generation 
 
-### Prerequisites
+and more.
+
+## Prerequisites
 Java 8 or higher.
 
 ## Installation 
