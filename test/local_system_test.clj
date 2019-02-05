@@ -51,7 +51,7 @@
                                      :workload-fn (exp/->Expression "io.titanoboa.java.SampleWorkloadImpl" "clojure")
                                      :properties {}}
                                     {:id          "step2" :type :custom :supertype :tasklet :next []
-                                     :workload-fn (exp/map->Expression{:value " p -> {\n \t\tString greeting = (String) p.get(\"greeting\");\n   \t\tgreeting = greeting + \" Nice to meet you!\";\n \t\tjava.util.HashMap propertiesToReturn = new java.util.HashMap ();\n   \t\tpropertiesToReturn.put (\"greeting\" , greeting);\n   \t\treturn clojure.lang.PersistentArrayMap.create(propertiesToReturn);\n }", :type "java"})
+                                     :workload-fn (exp/map->Expression{:value " p -> {\n \t\tString greeting = (String) p.get(\"greeting\");\n   \t\tgreeting = greeting + \" Nice to meet you!\";\n \t\tjava.util.HashMap propertiesToReturn = new java.util.HashMap ();\n   \t\tpropertiesToReturn.put (\"greeting\" , greeting);\n   \t\treturn propertiesToReturn;\n }", :type "java"})
                                      :properties {}}]})
 
 
