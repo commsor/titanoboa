@@ -411,7 +411,7 @@
                      :result result
                      :retry-count retry-count
                      :step-state (if error? :caught-error :completed)
-                     :exception exception
+                     :exception (when exception (Throwable->map exception))
                      :message message-end
                      :start step-start
                      :end step-end
@@ -646,7 +646,7 @@
                                                                     (catch Exception e
                                                                       (log/warn e "Something went wrong during processing of a step. Stopping job...")
                                                                       (let [timestamp (java.util.Date.)
-                                                                            history-map {:id (:id step) :step-state :error :thread-stack thread-stack :result :error :exception e :node-id node-id :retry-count retry-count :start step-start :end timestamp :duration (- (.getTime timestamp) (.getTime step-start))}
+                                                                            history-map {:id (:id step) :step-state :error :thread-stack thread-stack :result :error :exception (Throwable->map e) :node-id node-id :retry-count retry-count :start step-start :end timestamp :duration (- (.getTime timestamp) (.getTime step-start))}
                                                                             job (assoc job :state :error :step-state :error :history (conj (get job :history) history-map) :end timestamp)]
                                                                         (finalize-job! job finished-ch [#(channel/ack! p m)] update-job-cache)))))
                                                                 (recur))
