@@ -136,18 +136,32 @@
   (if (= state :initial)
     (let [step (first steps)]
       (log/info "Initializing a new job; First step will be: [" (:id step) "]")
-      (assoc (exp/eval-ordered (:properties step) job)
+      (assoc job
              :step step
              :state :running
              :step-start step-start))
     job))
+
+(defn get-step [{{:keys [steps] :as jobdef} :jobdef :as job} step-id]
+  (first (filter #(= (:id %) step-id) steps)))
+
+(defn next-step-join? [job next-step-id]
+  (if-not (vector? next-step-id)
+    (-> (get-step job next-step-id)
+        :supertype
+        (= :join))
+    (if (empty? (filterv #(-> (get-step job %)
+                  :supertype
+                  (= :join)) next-step-id))
+      false
+      (throw (IllegalStateException. "Multiple next steps found, but one of them is join! Join can be used only as a single next step.")))))
 
 (defn init-step [{{:keys [steps] :as jobdef} :jobdef :keys [state step-start next-step jobdir properties step-retries node-id] :as job}]
   (let [step (first (filter #(= (:id %) next-step) steps))
         retry-count (or (get step-retries next-step) 0)
         retrying? (> retry-count 0)]
       (log/info "Initializing a next step; next step ["next-step"] was found among steps as step [" (:id step) "]")
-      (assoc (exp/eval-ordered (:properties step) job)
+      (assoc job
              :step step :step-start step-start :step-state (if retrying? :retrying :running) :history (conj (get job :history) {:id (:id step) :step-state (if retrying? :retrying :running) :start step-start :node-id node-id :retry-count retry-count}))))
 
 (defn initialize-step [{:keys [state] :as job}]
@@ -394,7 +408,9 @@
         exception (:error result-map)
         message-end (str "Step [" (:id step) "] finshed with result ["result"]\n")
         _ (log/debug message-end)
-        next-step (when-not (and (= :join (:supertype step)) (dispatch4join? job)) (find-next-step step result))
+        next-step (find-next-step step result)
+        _ (log/debug "Step " step-id ": Will terminate flow for this thread now and dispatch 4 join: " (and (next-step-join? job next-step) (dispatch4join? job)))
+        next-step (if (and (next-step-join? job next-step) (dispatch4join? job)) nil next-step)
         _ (log/debug "Next step is " next-step)
         [retrying? step-retries] (if (and error? (not next-step))
                                    (assess4retry step step-retries)
@@ -512,6 +528,7 @@
                         #(merge-with (fn [i1 i2]
                                        (try (f i1 i2)
                                             (catch Exception e
+                                              (log/warn "Failed to merge properties during join: " e)
                                               i2))) %1 %2)
                         merge)
         threads2merge (-> parallel-threads
@@ -537,7 +554,7 @@
            ack-fns-vec []]
       (let [[job-thread ack-fn] (async/<!! async-ch)];;TODO add timeout
         (if job-thread
-          (do (log/info "Merging job with thread stack [" (:thread-stack job-thread) "] into the main thread...")
+          (do (log/debug "Merging job with thread stack [" (:thread-stack job-thread) "] into the main thread... " )
             (recur (-> main-thread-job
                        (update :properties merge-with-fn (:properties job-thread))
                        (update :history concat (:history job-thread))
@@ -554,14 +571,20 @@
                  (assoc :end (java.util.Date.)))
              ack-fns-vec]))))))
 
-(defn orchestrate-step [{:keys [step] :as job} node-id]
+(defn orchestrate-step [{:keys [step thread-stack] :as job} node-id]
   "Wrapper function around process-step fn.
-  Processes the given step and then also checks if step is of type join and if this is the main job thread - if so, then it also orchestrates the join.
+  Evaluates step's properties and processes the given step, but before that it also checks if step is of type join and if this is the main job thread - if so, then it also orchestrates the join.
   Returns a map containing job, a vector of ack functions that are to be called/committed later and a commit-callback-ch if acking is to be delayed (for map jobs)."
   (let [;; [commit-callback-ch job] (process-step job node-id) ;;FIXME swap order of these two lines?
-        [main-thread-job ack-fns-vec] (if (and (= :join (:supertype step)) (orchestrate-join? job))
-                                        (orchestrate-join! job)
+        [main-thread-job ack-fns-vec] (if (= :join (:supertype step))
+                                        (if (orchestrate-join? job)
+                                          (do
+                                            (log/debug "Orchestrating join thread-stack: " thread-stack " before processing step " (:id step))
+                                            (orchestrate-join! job))
+                                          (throw (IllegalStateException. "Join step should never be executed by a non-main thread!")))
                                         [job []])
+        main-thread-job (exp/eval-ordered (:properties step) main-thread-job)
+        _ (log/debug "Evaluated properties for job at step " (:id step) ": \n" (:properties main-thread-job))
         [commit-callback-ch main-thread-job] (if-not (= :error (:state main-thread-job))
                                                (process-step main-thread-job node-id)
                                                [nil main-thread-job])]
@@ -575,9 +598,10 @@
   (loop [job job
          ack-fns-vec ack-fns-vec
          thread-stack (or thread-stack [])]
-    (log/info "Looping through finalize-job! fn with thread-stack: " thread-stack)
+    (log/debug "Initiating finalize-job! fn with thread-stack: " thread-stack " after step " (get-in job [:step :id]))
     (cond
-      (dispatch4join? job) (do (dispatch4join! job)
+      (dispatch4join? job) (do (log/debug "Dispatching 4 join with thread-stack: " thread-stack " after step " (get-in job [:step :id]))
+                               (dispatch4join! job)
                                (mapv #(%) ack-fns-vec)
                                (update-cache-fn jobid job true))
       (orchestrate-join? job) (let [[{:keys [thread-stack] :as main-thread-job} new-ack-fns] (orchestrate-join! job)]
@@ -614,7 +638,7 @@
                                                                       retry-count (get step-retries (:id step))
                                                                       command nil ];;(poll! commands-ch)
                                                                   ;;TODO listen to a channel (will there be 1 channel for each job?) for lifecycle commands (pause/stop the job) - if suspended put to some "suspended" queue? Also jobs requiring human interaction will go there;
-                                                                  (log/info "Retrieved job [" jobid "] from jobs channel; Starting step [" (:id step) "]")
+                                                                  (log/info "Retrieved job [" jobid "] from jobs channel; Starting step [" (:id step) "] with thread stack " (:thread-stack job) )
                                                                   (dont-evict jobid)
                                                                   (update-job-cache jobid job)
                                                                   (try
