@@ -134,8 +134,8 @@
 	Returns the property map with evaluated properties. As properties are evaluated in a context of give job, job also needs to be provided as a second parameter."
   (binding [*ns* (find-ns 'titanoboa.exp)
             *job* job
-            *jobdir* (:jobdir job)
-            *properties* (:properties job)]
+            *properties* (:properties job)
+            *jobdir* (:jobdir job)]
     (walk/prewalk eval-property properties)))
 
 (defn eval-job-prop [job properties]

@@ -47,6 +47,8 @@
     (.close datasource)
     this))
 
+(defn execute! [datasource command]
+  (jdbc/execute! datasource command))
 
 (defn archive-job! [ds job]
   (jdbc/insert! ds "jobs" {:jobid     (java.util.UUID/fromString (:jobid job))

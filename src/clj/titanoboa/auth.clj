@@ -56,8 +56,8 @@
 
 (defn- pkey [auth-conf]
   (ks/private-key
-    (io/resource (:privkey auth-conf))
-    (:passphrase auth-conf)))
+   (:privkey auth-conf)
+   (:passphrase auth-conf)))
 
 (defn create-auth-token [ds auth-conf name password]
   (let [[ok? res] (auth-user ds name password)
@@ -76,14 +76,15 @@
          :cookie-attrs {:max-age (* 60 60 24)}})))
 
 (defn unsign-token [token pubkey]
-  (jwt/unsign token (ks/public-key (io/resource pubkey)) {:alg :rs256}))
+  (jwt/unsign token pubkey {:alg :rs256}))
 
 
-(defn wrap-auth-token [handler pubkey]
-  (fn [req]
-    (let [user (:user (when-let [token (-> req :session :token)]
-                        (unsign-token token pubkey)))]
-      (handler (assoc req :auth-user user)))))
+(defn wrap-auth-token [handler pubkey-path]
+  (let [pubkey (ks/public-key pubkey-path)]
+    (fn [req]
+      (let [user (:user (when-let [token (-> req :session :token)]
+                          (unsign-token token pubkey)))]
+        (handler (assoc req :auth-user user))))))
 
 (defn wrap-authentication [handler]
   (fn [req]

@@ -72,7 +72,7 @@
 
 (deftest start-server
   (testing "starting up titanoboa server"
-    (server/start server-config)
+    (server/start! server-config)
     (is (instance? org.eclipse.jetty.server.Server server/server))
     (is (not-empty (titanoboa.system/live-systems)))))
 

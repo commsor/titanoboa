@@ -11,9 +11,13 @@
             [titanoboa.api :as api]
             [titanoboa.channel :as channel]
             [titanoboa.database :as db]
+            [titanoboa.system.jdbc :as system.jdbc]
+            [titanoboa.auth :as auth]
+            [clojure.edn :as edn]
             [com.stuartsierra.component :as component]
             [clojure.tools.logging :as log]
-            [me.raynes.fs :as fs])
+            [me.raynes.fs :as fs]
+            [titanoboa.exp :as exp])
   (:import [org.eclipse.jetty.server
             Server]
            [java.io File]))
@@ -122,8 +126,7 @@
   (shutdown-agents)
   (.interrupt @clojure.core.async.impl.timers/timeout-daemon))
 
-(defn start
-  [& [cfg host]]
+(defn start! [& [cfg host]]
   (binding [*use-context-classloader* true]
     (let [cl (clojure.lang.DynamicClassLoader.)]
       (.bindRoot clojure.lang.Compiler/LOADER cl)
@@ -141,5 +144,32 @@
                       (constantly (run-jetty (handler/get-ring-app server-config)
                                              (:jetty server-config)))))))
 
+(defn run-db-setup! [db-conf-path script-path]
+  (require-extensions)
+  (system/start-system! :db
+                        {:db {:system-def #'titanoboa.system.jdbc/jdbc-pool}}
+                        (edn/read-string (slurp db-conf-path)))
+  (log/info "Running db setup script...")
+  (db/execute! (get-in @titanoboa.system/systems-state [:db :system :pool])  (slurp script-path))
+  (system/stop-all-systems!))
+
+(defn add-user! [db-conf-path name password email level]
+  (require-extensions)
+  (system/start-system! :db
+                        {:db {:system-def #'system.jdbc/jdbc-pool}}
+                        (edn/read-string (slurp db-conf-path)))
+  (log/info "Adding new user into db...")
+  (auth/create-user (get-in @system/systems-state [:db :system :pool])
+                    {:name name
+                     :password password
+                     :email email
+                     :level level})
+  (system/stop-all-systems!))
+
 (defn -main [& args]
-  (start))
+  (log/info "Running titanoboa with parameters: " args)
+    (case (first args)
+      "db-setup" (run-db-setup! (nth args 1) (nth args 2))
+      "add-user" (apply add-user! (rest args))
+      "start" (start!)
+      (start!)))

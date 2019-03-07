@@ -1,0 +1,4 @@
+{:jdbc-url "jdbc:postgresql://localhost:5432/mydb?currentSchema=test"
+ :user "postgres"
+ :password "postgres"
+ :driver-class "org.postgresql.Driver"}
