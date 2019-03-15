@@ -7,6 +7,15 @@ You can run it on-premises or in a cloud.
 
 ![alt Logo](https://s3.eu-central-1.amazonaws.com/www.titanoboa.io/tb-logo-dark-nosubtitle.svg)
 
+Due to its generic, distributed and easily extensible design, you can use titanoboa for wide variety of purposes. <br/>
+Yu can use it:
+* as a **Service Bus** (ESB)
+* as a full-feature **iPaaS** / **Integration Platform**
+* for **[Big Data](https://www.titanoboa.io/big-data.html)** processing
+* for **[IT Automation](https://www.titanoboa.io/using-titanoboa-for-it-automation.html)**
+* for **Batch Processing**
+* for Data Transformations / **ETL**
+
 See also [titanoboa.io](https://titanoboa.io) and our [wiki](https://github.com/mikub/titanoboa/wiki). Predefined workflow steps are [here](https://github.com/mikub/titanoboa-tasklets).
 
 <img src="http://www.titanoboa.io/sample-graph.gif" width="500"/>
