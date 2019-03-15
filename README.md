@@ -5,7 +5,7 @@ Titanoboa is fully distributed, highly scalable and fault tolerant workflow orch
 It employs hybrid iPaaS concepts and runs on the JVM.
 You can run it on-premises or in a cloud.
 
-![alt Logo](https://s3.eu-central-1.amazonaws.com/www.titanoboa.io/tb-logo-dark-nosubtitle.svg)
+![alt Logo](https://www.titanoboa.io/tb-logo-dark-nosub.svg)
 
 Due to its generic, distributed and easily extensible design, you can use titanoboa for wide variety of purposes. <br/>
 Yu can use it:
