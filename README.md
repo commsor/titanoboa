@@ -8,7 +8,7 @@ You can run it on-premises or in a cloud.
 ![alt Logo](https://www.titanoboa.io/tb-logo-dark-nosub.svg)
 
 Due to its generic, distributed and easily extensible design, you can use titanoboa for wide variety of purposes. <br/>
-Yu can use it:
+You can use it:
 * as a **Service Bus** (ESB)
 * as a full-feature **iPaaS** / **Integration Platform**
 * for **[Big Data](https://www.titanoboa.io/big-data.html)** processing
