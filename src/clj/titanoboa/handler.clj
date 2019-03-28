@@ -25,7 +25,8 @@
             [clojure.tools.logging :as log]
             [titanoboa.auth :as auth]
             [titanoboa.database :as db]
-            [ring.util.response :as resp])
+            [ring.util.response :as resp]
+            [compliment.core :as compliment])
   (:import [java.net URI]
            [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
@@ -66,7 +67,11 @@
                                                                          :user (or (get-in r [:auth-user :name]) "anonymous")
                                                                          :revision-notes (or notes "")})
                                                             :status 201})
-      (POST "/:def-name/repl" [def-name snippet] {:body {:result (exp/eval-snippet snippet (symbol def-name))}}))
+      (POST "/:def-name/repl" [def-name snippet type properties] {:body {:result (exp/eval-snippet snippet type properties (symbol def-name))}})
+      (POST "/:def-name/autocomplete" [def-name snippet] {:body {:result (->>(compliment/completions snippet)
+                                                                             (mapv (fn [{:keys [candidate]}]
+                                                                                     candidate))
+                                                                             (take 50))}}))
     (context "/systems" []
       (GET "/" [] {:body (merge-with merge (into {} (system/live-systems)) systems-catalogue)})
       (GET "/live" [] {:body (system/live-systems)})

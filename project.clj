@@ -39,7 +39,8 @@
                  [com.mchange/c3p0 "0.9.5.2"]
                  [honeysql "0.9.1"]
                  [postgresql/postgresql "9.4.1208-jdbc42-atlassian-hosted"]
-                 [io.titanoboa/titanoboa-java "0.1.0"]]
+                 [io.titanoboa/titanoboa-java "0.1.0"]
+                 [compliment "0.3.8"]]
 
   :plugins [[lein-libdir "0.1.1"]
             [lein-licenses "0.2.2"]

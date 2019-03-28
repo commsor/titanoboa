@@ -45,10 +45,14 @@
   (and (expression? exp) (= (:type exp) "java")))
 
 ;;TODO spawn different namespace for each logged user (and maybe separate for each job/step/revision?) - OR USE DIFFERENT Clojure RunTime!
-(defn eval-snippet [s ns-sym]
+(defn eval-snippet [s type properties ns-sym]
   (binding [*ns* (create-ns ns-sym)
-            ] ;;TODO bind *job* and *properties* based on some test data
-    (try (load-string s)
+            *properties* properties] ;;TODO bind *job* and *properties* based on some test data
+    (try (if (= "java" type)
+           (-> java-lambda-factory
+               (.createLambdaUnchecked s (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, java.util.Map>"))
+               (.apply properties))
+           (load-string s))
          (catch Exception e
            (log/warn "Failed to evaluate expression [" s "] - threw an Exception " e)
            e))))
