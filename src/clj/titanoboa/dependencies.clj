@@ -7,7 +7,8 @@
             [me.raynes.fs :as fs]
             [clojure.java.io :as io]
             [dynapath.util :as dp]
-            [dynapath.dynamic-classpath :as dc])
+            [dynapath.dynamic-classpath :as dc]
+            [compliment.utils])
   (:import (java.io File FileOutputStream)))
 
 (def dependencies-path-property "boa.server.dependencies.path")
@@ -52,7 +53,8 @@
       (apply require r))
     (when-let [i (:import ext-coordinates)]
       (log/info "Importing external classes: " i)
-      (when (sequential? i) (mapv #(import %) i)))))
+      (when (sequential? i) (mapv #(import %) i)))
+    (compliment.utils/flush-caches)))
 
  ;;TODO there might be need for retry in case the file stays locked for longer?
 (defrecord DepsWatcherComponent [deps-file-path stop-callback-fn last-content-atom]
