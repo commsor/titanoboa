@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.com/mikub/titanoboa.svg?branch=master)](https://travis-ci.com/mikub/titanoboa)
+[![Join the chat at https://gitter.im/titanoboa_io/community](https://badges.gitter.im/titanoboa_io/community.svg)](https://gitter.im/titanoboa_io/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Synopsis
 Titanoboa is fully distributed, highly scalable and fault tolerant workflow orchestration platform.
