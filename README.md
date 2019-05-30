@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.com/mikub/titanoboa.svg?branch=master)](https://travis-ci.com/mikub/titanoboa)
+[![Join the chat at https://gitter.im/titanoboa_io/community](https://badges.gitter.im/titanoboa_io/community.svg)](https://gitter.im/titanoboa_io/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Synopsis
 Titanoboa is fully distributed, highly scalable and fault tolerant workflow orchestration platform.
@@ -32,7 +33,7 @@ Titanoboa has been created with aim to create a workflow platform, that would su
 
 In addition to this titanoboa also strives to honor **immutability and functional programming principles**. This enables it to be fully **distributed** and to be **highly available** with no central master server or database. This also helps lift performance limitations and thus titanoboa can be suitable for not only batch processing, but also for performance critical workflows.
 
-Titanoboa's [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI) can be used not only to monitor workflow jobs and server configuration, but provides an in-build IDE with workflow visualisation, properties editor and a repl so as users can rapidly test-develop new workflows directly in there.
+Titanoboa's in-browser [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI) can be used not only to monitor workflow jobs and server configuration, but provides an in-build IDE with [workflow visualisation](https://www.titanoboa.io/titanoboa-demo_drag_n_drop.mp4), advanced data and properties editor, [autcomplete functionality](https://www.titanoboa.io/titanoboa-demo_java.mp4) and a [repl](https://www.titanoboa.io/titanoboa-demo_repl.mp4) (even for java!) so as users can rapidly test-develop new workflows directly in there.
 
 <img width="42" height="42" src="https://github.com/mikub/titanoboa/blob/master/doc/clojure.svg"><img width="54" height="54" src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg"><br/>
 Titanoboa is **designed for both java & clojure developers** and we are striving to make it **usable even for java developers with no prior clojure knowledge**.
@@ -53,19 +54,19 @@ Java 8 or higher.
 
 ## Installation 
 We suggest giving titanoboa's GUI a try as well since it is the best starting point!  
-Download titanoboa's distribution including its GUI from https://www.titanoboa.io/distributions/titanoboa-0.7.4-SNAPSHOT_gui_non-commercial_use_only.zip 
+Download titanoboa's distribution including its GUI from https://www.titanoboa.io/distributions/titanoboa-0.8.0_gui_non-commercial_use_only.zip 
 
-    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.7.4-SNAPSHOT_gui_non-commercial_use_only.zip
+    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.0_gui_non-commercial_use_only.zip
 
 **Note**: _The GUI is free for non-commercial use only_
 
 __Note__: _If you are intending on running titanoboa server on java 8 JRE, download a distribution for JRE instead:_
 
-    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.7.4-SNAPSHOT_jre_gui_non-commercial_use_only.zip
+    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.0_jre_gui_non-commercial_use_only.zip
 
 Unzip the file:
     
-    unzip titanoboa-0.7.4-SNAPSHOT_gui_non-commercial_use_only.zip
+    unzip titanoboa-0.8.0_gui_non-commercial_use_only.zip
 
 then execute the start script:
     
@@ -82,13 +83,13 @@ Congratulations! You have just started your titanoboa server!
 You can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
 ## Installing server without GUI
-Download the latest release from https://www.titanoboa.io/distributions/titanoboa-0.7.4-SNAPSHOT.zip .
+Download the latest release from https://www.titanoboa.io/distributions/titanoboa-0.8.0.zip .
 
-    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.7.4-SNAPSHOT.zip
+    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.0.zip
 
 __Note__: _If you are intending on running titanoboa server on java 8 JRE, download a distribution for JRE instead:_
 
-    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.7.4-SNAPSHOT_jre.zip
+    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.0_jre.zip
     
 And then follow the instructions above. By default the server will start on port 3000.
      
