@@ -1,4 +1,4 @@
-(defproject io.titanoboa/titanoboa "0.8.0"
+(defproject io.titanoboa/titanoboa "0.8.1-SNAPSHOT"
   :description "titanoboa.io is fully distributed, highly scalable and fault tolerant workflow orchestration platform"
   :url "http://titanoboa.io"
   :license {:name "GNU Affero General Public License"
@@ -14,7 +14,7 @@
                                                     com.sun.jmx/jmxri]]
                  [org.slf4j/slf4j-log4j12 "1.7.5"]
                  [org.clojure/tools.namespace "0.2.11"]
-                 [org.clojure/java.classpath "0.2.3"]
+                 [org.clojure/java.classpath "0.3.0"]
                  [org.tcrawley/dynapath "1.0.0"]
                  [org.xeustechnologies/jcl-core "2.8"  :exclusions [org.slf4j/slf4j-api]]
                  [com.cemerick/pomegranate "1.1.0" :exclusions [org.tcrawley/dynapath]]
