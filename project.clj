@@ -38,7 +38,7 @@
                  [org.clojure/java.jdbc "0.7.1"]
                  [com.mchange/c3p0 "0.9.5.2"]
                  [honeysql "0.9.1"]
-                 [postgresql/postgresql "9.4.1208-jdbc42-atlassian-hosted"]
+                 [org.postgresql/postgresql "9.4.1208"]
                  [io.titanoboa/titanoboa-java "0.1.0"]
                  [io.titanoboa/compliment "0.3.9"]]
 
