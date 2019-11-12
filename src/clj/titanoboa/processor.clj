@@ -59,7 +59,8 @@
     ;;TODO - is this safe to retry? if not use Agent
     (if files
       (doseq [[k v] files]
-        (store-file jobdir k v)))
+        (log/debug "Storing file " (name k))
+        (store-file jobdir (name k) v)))
     ;;update ref with running jobs map
     (send state-agent assoc id job)
     ;;TODO insert into the state machine pipeline - do it in the transaction? (agent would be required)
