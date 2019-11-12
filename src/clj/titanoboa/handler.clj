@@ -87,7 +87,11 @@
            :restart {:status 200 :body (system/restart-system! (util/tokey (http-util/url-decode system)) systems-catalogue config)})})
       (POST "/workers" [] {:body (system/start-workers! (util/tokey (http-util/url-decode system)) systems-catalogue 1)});; TODO add PATCH to stop/start workers?
       (POST "/jobs" [sync & conf] (do (log/debug "Recieved request to start a job on system [" (http-util/url-decode system) "] with config ["conf"]")
-                               {:status 201 :body (processor/run-job! (util/tokey (http-util/url-decode system)) conf sync)})))
+                               {:status 201 :body (processor/run-job! (util/tokey (http-util/url-decode system)) conf sync)}))
+      (POST "/jobs/:jobdef-name" [jobdef-name & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
+                                      {:status 201 :body (processor/run-job! (util/tokey (http-util/url-decode system)) {:jobdef-name jobdef-name :properties properties} false)}))
+      (POST "/jobs/:jobdef-name/:revision" [jobdef-name revision & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
+                                                                {:status 201 :body (processor/run-job! (util/tokey (http-util/url-decode system)) {:jobdef-name jobdef-name :revision revision :properties properties} false)})))
     (context "/cluster" []
       (GET "/" []  {:status 404})
       (GET "/id" [] {:status 404})
