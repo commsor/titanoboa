@@ -79,12 +79,16 @@
   (jwt/unsign token pubkey {:alg :rs256}))
 
 
-(defn wrap-auth-token [handler pubkey-path]
-  (let [pubkey (ks/public-key pubkey-path)]
+(defn wrap-auth-token [handler {:keys [pubkey extensions] :as auth-conf}]
+  (let [public-key (ks/public-key pubkey)]
     (fn [req]
       (let [user (:user (when-let [token (-> req :session :token)]
-                          (unsign-token token pubkey)))]
-        (handler (assoc req :auth-user user))))))
+                          (unsign-token token public-key)))]
+        (if (and (not user) (contains? extensions (:uri req)))
+          (do
+            (log/info "Security extension applicable for URI " (:uri req))
+            (handler ((get extensions (:uri req)) req)))
+          (handler (assoc req :auth-user user)))))))
 
 (defn wrap-authentication [handler]
   (fn [req]

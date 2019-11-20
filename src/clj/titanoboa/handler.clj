@@ -150,14 +150,14 @@
     (routes
       (-> (get-public-routes config)
           simple-logging-middleware
-          (auth/wrap-auth-token (:pubkey auth-conf))
+          #_(auth/wrap-auth-token auth-conf)
           simple-logging-middleware
           fallback-exception-middleware)
       (-> (get-secured-routes config)
           auth/wrap-authentication
           simple-logging-middleware
           fallback-exception-middleware
-          (auth/wrap-auth-token (:pubkey auth-conf))))
+          (auth/wrap-auth-token auth-conf)))
     (routes
       (-> (get-public-routes config)
           simple-logging-middleware
