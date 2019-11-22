@@ -83,9 +83,9 @@ Congratulations! You have just started your titanoboa server!
 You can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
 ## Installing server without GUI
-Download the latest release from https://www.titanoboa.io/distributions/titanoboa-0.8.1.zip .
+Download the latest release from https://www.titanoboa.io/distributions/titanoboa-0.8.2.zip .
 
-    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.1.zip
+    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.2.zip
 
 __Note__: _If you are intending on running titanoboa server on java 8 JRE, download a distribution for JRE instead:_
 
