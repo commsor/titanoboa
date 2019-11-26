@@ -11,7 +11,7 @@ You can run it on-premises or in a cloud.
 Due to its generic, distributed and easily extensible design, you can use titanoboa for wide variety of purposes. <br/>
 You can use it:
 * as a **Service Bus** (ESB)
-* as a full-featured **iPaaS** / **Integration Platform**
+* as a full-featured [**iPaaS** / **Integration Platform**](https://titanoboa.io/using-titanoboa-for-cloud-integration.html)
 * for **[Big Data](https://www.titanoboa.io/big-data.html)** processing
 * for **[IT Automation](https://www.titanoboa.io/using-titanoboa-for-it-automation.html)**
 * for **Batch Processing**
