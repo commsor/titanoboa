@@ -54,19 +54,19 @@ Java 8 or higher.
 
 ## Installation 
 We suggest giving titanoboa's GUI a try as well since it is the best starting point!  
-Download titanoboa's distribution including its GUI from https://www.titanoboa.io/distributions/titanoboa-0.8.1_gui_non-commercial_use_only.zip 
+Download titanoboa's distribution including its GUI from https://www.titanoboa.io/distributions/titanoboa-0.8.2_gui_non-commercial_use_only.zip 
 
-    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.1_gui_non-commercial_use_only.zip
+    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.2_gui_non-commercial_use_only.zip
 
 **Note**: _The GUI is free for non-commercial use only_
 
 __Note__: _If you are intending on running titanoboa server on java 8 JRE, download a distribution for JRE instead:_
 
-    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.1_jre_gui_non-commercial_use_only.zip
+    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.2_jre_gui_non-commercial_use_only.zip
 
 Unzip the file:
     
-    unzip titanoboa-0.8.1_gui_non-commercial_use_only.zip
+    unzip titanoboa-0.8.2_gui_non-commercial_use_only.zip
 
 then execute the start script:
     
@@ -89,7 +89,7 @@ Download the latest release from https://www.titanoboa.io/distributions/titanobo
 
 __Note__: _If you are intending on running titanoboa server on java 8 JRE, download a distribution for JRE instead:_
 
-    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.1_jre.zip
+    curl --remote-name https://www.titanoboa.io/distributions/titanoboa-0.8.2_jre.zip
     
 And then follow the instructions above. By default the server will start on port 3000.
      
