@@ -36,7 +36,7 @@ In addition to this titanoboa also strives to honor **immutability and functiona
 Titanoboa's in-browser [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI) can be used not only to monitor workflow jobs and server configuration, but provides an in-build IDE with [workflow visualisation](https://www.titanoboa.io/titanoboa-demo_drag_n_drop.mp4), advanced data and properties editor, [autcomplete functionality](https://www.titanoboa.io/titanoboa-demo_java.mp4) and a [repl](https://www.titanoboa.io/titanoboa-demo_repl.mp4) (even for java!) so as users can rapidly test-develop new workflows directly in there.
 
 <img width="42" height="42" src="https://github.com/mikub/titanoboa/blob/master/doc/clojure.svg"><img width="54" height="54" src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg"><br/>
-Titanoboa is **designed for both java & clojure developers** and we are striving to make it **usable even for java developers with no prior clojure knowledge**.
+Titanoboa is **designed for both java & clojure developers** and we are striving to make it **[usable even for java developers with no prior clojure knowledge](#-developing-custom-workflow-steps-in-java)**.
 
 ## Predefined Steps
 Though it is easy to rapidly develop new workflow steps directly from GUI, there is a number of ready-made steps and tasklets in [this repository](https://github.com/mikub/titanoboa-tasklets).
