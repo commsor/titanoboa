@@ -3,7 +3,7 @@
 #?(:clj
     (defn store-file [dir filename bytes]
       (clojure.java.io/copy
-        bytes
+        (if (string? bytes) (String. (.decode (java.util.Base64/getDecoder) bytes)) bytes)
         (java.io.File. dir filename))))
 
 (defn filter-by-index [coll idx]
