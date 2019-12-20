@@ -177,6 +177,7 @@ then fire off a repl and start:
 ```clojure
 (ns local-system-test
   (:require [titanoboa.system]
+            [titanoboa.system.local]
             [titanoboa.processor]))
 
 (defn hello-fn [p]
