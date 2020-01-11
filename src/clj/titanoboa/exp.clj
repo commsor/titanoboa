@@ -16,19 +16,17 @@
 (def ^:dynamic *properties* {})
 (def ^:dynamic *jobdir* nil)
 
-(def java-lambda-factory nil)
+(def java-lambda-factory (LambdaFactory/get))
 
 (defn init-java-lambda-factory!
   ([cl]
    (let [c-path (reduce (fn [v i] (str v (.getCanonicalPath i) java.io.File/pathSeparatorChar)) "" (cp/classpath cl))]
-     (log/info "Java lambda will use following classpath: " c-path)
+     (log/debug "Java lambda will use following classpath: " c-path)
      (alter-var-root #'java-lambda-factory (constantly (LambdaFactory/get (-> (LambdaFactoryConfiguration/get)
                                                                               (.withParentClassLoader cl)
                                                                               (.withCompilationClassPath c-path)))))))
   ([]
-   (init-java-lambda-factory! (.getContextClassLoader (Thread/currentThread)))))
-
-(init-java-lambda-factory!)
+   (init-java-lambda-factory! (LambdaFactory/get))))
 
 (defrecord Expression [value type])
 
