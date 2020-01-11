@@ -21,6 +21,7 @@
 (defn init-java-lambda-factory!
   ([cl]
    (let [c-path (reduce (fn [v i] (str v (.getCanonicalPath i) java.io.File/pathSeparatorChar)) "" (cp/classpath cl))]
+     (log/info "Java lambda will use following classpath: " c-path)
      (alter-var-root #'java-lambda-factory (constantly (LambdaFactory/get (-> (LambdaFactoryConfiguration/get)
                                                                               (.withParentClassLoader cl)
                                                                               (.withCompilationClassPath c-path)))))))

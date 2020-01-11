@@ -56,7 +56,8 @@
       (log/info "Importing external classes: " i)
       (when (sequential? i) (mapv #(import %) i)))
     (compliment.utils/flush-caches)
-    (titanoboa.exp/init-java-lambda-factory! (.getContextClassLoader (Thread/currentThread)))))
+    (titanoboa.exp/init-java-lambda-factory! (last (filter pom/modifiable-classloader?
+                                                           (pom/classloader-hierarchy))))))
 
  ;;TODO there might be need for retry in case the file stays locked for longer?
 (defrecord DepsWatcherComponent [deps-file-path stop-callback-fn last-content-atom]
