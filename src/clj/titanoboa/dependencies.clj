@@ -8,7 +8,8 @@
             [clojure.java.io :as io]
             [dynapath.util :as dp]
             [dynapath.dynamic-classpath :as dc]
-            [compliment.utils])
+            [compliment.utils]
+            [titanoboa.exp])
   (:import (java.io File FileOutputStream)))
 
 (def dependencies-path-property "boa.server.dependencies.path")
@@ -54,7 +55,8 @@
     (when-let [i (:import ext-coordinates)]
       (log/info "Importing external classes: " i)
       (when (sequential? i) (mapv #(import %) i)))
-    (compliment.utils/flush-caches)))
+    (compliment.utils/flush-caches)
+    (titanoboa.exp/init-java-lambda-factory! (.getContextClassLoader (Thread/currentThread)))))
 
  ;;TODO there might be need for retry in case the file stays locked for longer?
 (defrecord DepsWatcherComponent [deps-file-path stop-callback-fn last-content-atom]

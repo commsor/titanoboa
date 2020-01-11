@@ -1,12 +1,12 @@
 (ns titanoboa.exp
   (:require [clojure.walk :as walk]
             [cognitect.transit :as transit]
+            [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
             [cognitect.transit :as transit]
             [taoensso.nippy :as nippy]
-            [titanoboa.dependencies :as deps]
             [titanoboa.singleton :as singleton])
-  (:import [pl.joegreen.lambdaFromString LambdaFactory DynamicTypeReference]
+  (:import [pl.joegreen.lambdaFromString LambdaFactory DynamicTypeReference LambdaFactoryConfiguration]
            (java.io ObjectOutputStream)
            (clojure.lang PersistentArrayMap)
            (java.util Map)
@@ -16,7 +16,18 @@
 (def ^:dynamic *properties* {})
 (def ^:dynamic *jobdir* nil)
 
-(def java-lambda-factory (LambdaFactory/get))
+(def java-lambda-factory nil)
+
+(defn init-java-lambda-factory!
+  ([cl]
+   (let [c-path (reduce (fn [v i] (str v (.getCanonicalPath i) java.io.File/pathSeparatorChar)) "" (cp/classpath cl))]
+     (alter-var-root #'java-lambda-factory (constantly (LambdaFactory/get (-> (LambdaFactoryConfiguration/get)
+                                                                              (.withParentClassLoader cl)
+                                                                              (.withCompilationClassPath c-path)))))))
+  ([]
+   (init-java-lambda-factory! (.getContextClassLoader (Thread/currentThread)))))
+
+(init-java-lambda-factory!)
 
 (defrecord Expression [value type])
 
