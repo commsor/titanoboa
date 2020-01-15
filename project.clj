@@ -28,7 +28,7 @@
                  [ring-middleware-format "0.7.2" :exclusions [com.cognitect/transit-clj org.clojure/tools.reader circleci/clj-yaml]]
                  [circleci/clj-yaml "0.5.6" :exclusions [org.flatland/ordered]]
                  [org.flatland/ordered "1.5.7"]
-                 [com.cognitect/transit-clj "0.8.290"]
+                 [com.cognitect/transit-clj "0.8.319"]
                  [com.taoensso/timbre "4.7.0"]
                  [compojure "1.5.2"]
                  [buddy "2.0.0"]

@@ -210,7 +210,8 @@
       ;;simple-logging-middleware
       (wrap-restful-format {:formats [:transit-json :transit-msgpack :edn :json-kw]
                             :response-options {:transit-json
-                                                {:handlers transit-handlers-encode}}
+                                                {:handlers transit-handlers-encode
+                                                 :default-handler (transit/write-handler (constantly "s") #(str %))}}
                             :params-options {:transit-json
                                                 {:handlers transit-handlers-decode}}})
       wrap-params
