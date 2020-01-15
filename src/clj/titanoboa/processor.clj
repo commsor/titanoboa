@@ -18,11 +18,6 @@
 (def ^:dynamic *cmd-exchange-ch* nil)
 (def ^:dynamic *server-config* nil)
 
-(defn preprocess [job]
-  (log/info "Entering preprocessing method...")
-  (print "preprocessing...."))
-
-;;TODO move this to a separate namespace "commands" or similar?
 (defn instantiate-job! [{:keys [tracking-id id jobdef jobdef-name revision properties files new-jobs-ch state-agent job-folder defs-atom mq-pool callback-ch] :as config}]
   (let [id (or id (str (java.util.UUID/randomUUID)))
         jobdir (java.io.File. job-folder id)
