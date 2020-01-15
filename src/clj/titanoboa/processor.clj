@@ -30,11 +30,13 @@
         revision (if revision (Integer/parseInt revision) nil)
         jobdef (or jobdef (get-in @defs-atom [jobdef-name (or revision :head) :job-def]))
         jobdef-name (or (:name jobdef) jobdef-name)
+        create-folder? (not (false? (get-in jobdef [:properties :create-folder?])))
+        properties (if create-folder? (merge properties {:jobdir jobdir "jobdir" jobdir}) properties)
         init-job {:jobid id
                   :tracking-id tracking-id
                   :step-retries {}
                   :jobdef jobdef
-                  :create-folder? (not (false? (get-in jobdef [:properties :create-folder?])))
+                  :create-folder? create-folder?
                   :jobdir jobdir
                   :state :initial
                   :step nil
