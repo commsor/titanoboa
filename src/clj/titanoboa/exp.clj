@@ -54,6 +54,35 @@
 (defn java-expression? [exp]
   (and (expression? exp) (= (:type exp) "java")))
 
+(defn eval-expr [^Expression expr]
+  (cond
+    (string? (:value expr)) (load-string (:value expr))
+    (list? (:value expr)) (eval (:value expr))
+    (symbol? (:value expr)) (resolve (:value expr))))
+
+(defn eval-property [property]
+  "Evaluates if provided job property contains expression.
+	If so it evaluates it using load-string and returns result. Otherwise returns the property unchanged.
+	By default all records of titanoboa.exp.Expression type are treated as potentially quoted forms.
+	If (type property) is titanoboa.exp.Expression it's value (:value property) is then evaluated.
+  If an Exception thrown it is logged and the Expression's value is returned withoud evaluating."
+  (try (cond
+         (expression? property) (eval-expr property)
+         (list? property) (eval property)
+         :else property)
+       (catch Exception e
+         (log/warn "Failed to evaluate expression [" property "] - threw an Exception " e)
+         property)))
+
+(defn eval-properties [properties job]
+  "Traverses (depth-first) property map and evaluates all potential quoted expressions using eval-quote.
+	Returns the property map with evaluated properties. As properties are evaluated in a context of give job, job also needs to be provided as a second parameter."
+  (binding [*ns* (find-ns 'titanoboa.exp)
+            *job* job
+            *properties* (:properties job)
+            *jobdir* (:jobdir job)]
+    (walk/prewalk eval-property properties)))
+
 ;;TODO spawn different namespace for each logged user (and maybe separate for each job/step/revision?) - OR USE DIFFERENT Clojure RunTime!
 (defn eval-snippet [s type properties ns-sym]
   (binding [*ns* (create-ns ns-sym)
@@ -61,17 +90,11 @@
     (try (if (= "java" type)
            (-> java-lambda-factory
                (.createLambdaUnchecked s (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, java.util.Map>"))
-               (.apply properties))
+               (.apply (eval-properties properties {})))
            (load-string s))
          (catch Exception e
            (log/warn "Failed to evaluate expression [" s "] - threw an Exception " e)
            e))))
-
-(defn eval-expr [^Expression expr]
-  (cond
-    (string? (:value expr)) (load-string (:value expr))
-    (list? (:value expr)) (eval (:value expr))
-    (symbol? (:value expr)) (resolve (:value expr))))
 
 (defn eval-exfn [expr]
   (cond
@@ -128,29 +151,6 @@
         (log/warn "workload-fn of step [" (:id step) "] threw an Exception: " e)
         {:exit-code "error"
          :error e}))))
-
-(defn eval-property [property]
-  "Evaluates if provided job property contains expression.
-	If so it evaluates it using load-string and returns result. Otherwise returns the property unchanged.
-	By default all records of titanoboa.exp.Expression type are treated as potentially quoted forms.
-	If (type property) is titanoboa.exp.Expression it's value (:value property) is then evaluated.
-  If an Exception thrown it is logged and the Expression's value is returned withoud evaluating."
-    (try (cond
-           (expression? property) (eval-expr property)
-           (list? property) (eval property)
-           :else property)
-     (catch Exception e
-       (log/warn "Failed to evaluate expression [" property "] - threw an Exception " e)
-       property)))
-
-(defn eval-properties [properties job]
-  "Traverses (depth-first) property map and evaluates all potential quoted expressions using eval-quote.
-	Returns the property map with evaluated properties. As properties are evaluated in a context of give job, job also needs to be provided as a second parameter."
-  (binding [*ns* (find-ns 'titanoboa.exp)
-            *job* job
-            *properties* (:properties job)
-            *jobdir* (:jobdir job)]
-    (walk/prewalk eval-property properties)))
 
 (defn eval-job-prop [job properties]
   "Same as eval-properties but returns directly the job map which :properties are already merged with the updated (evaluated) properties. Properties can be either a map or array of pairs."
