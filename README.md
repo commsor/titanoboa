@@ -345,7 +345,7 @@ or
 [![]( https://github.com/mikub/titanoboa/blob/master/doc/java-workload.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/java-workload.png )
 
 ### Java lambda support
-To rapidly development and test new steps, you can also type a lambda function in the GUI and have titanoboa evaluate it during runtime:
+To rapidly development and test new steps, you can also type a lambda function in the GUI and have titanoboa evaluate it during runtime. Read more about it [here](https://www.titanoboa.io/java-repl.html).
 [![]( https://github.com/mikub/titanoboa/blob/master/doc/java-lambda-workload.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/java-lambda-workload.png )
 
 ## License
