@@ -11,6 +11,11 @@ matrix:
     - jdk: openjdk11
     - os: osx
       jdk: openjdk11
+      addons:
+        homebrew:
+          packages:
+          - leiningen
+          update: true
 
 notifications:
   email:
