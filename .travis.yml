@@ -1,5 +1,5 @@
 language: clojure
-
+  
 matrix:
   include:
     - jdk: openjdk8
@@ -9,6 +9,8 @@ matrix:
         - ln -s /etc/ssl/certs/java/cacerts "${JAVA_HOME}/lib/security/cacerts"
     - jdk: openjdk10
     - jdk: openjdk11
+    - os: osx
+      jdk: openjdk11
 
 notifications:
   email:
