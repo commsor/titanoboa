@@ -6,7 +6,8 @@
             [titanoboa.actions :as actions]
             [titanoboa.processor :as processor]
             [titanoboa.database :as db]
-            [titanoboa.cache :as cache]))
+            [titanoboa.cache :as cache]
+            [titanoboa.repo :as repo]))
 
 (defn local-core-system [{:keys [node-id jobs-repo-path job-folder-path  new-jobs-chan jobs-chan finished-jobs-chan eviction-interval eviction-age] :as config}]
   (component/system-map
