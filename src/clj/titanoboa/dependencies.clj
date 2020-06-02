@@ -40,26 +40,34 @@
 
 (def ext-deps-system nil)
 
+(defn effectively-empty? [col]
+  "Returns true is collection is empty or contains empty collections. returns also true if not a sequence."
+  (or (not (sequential? col)) (empty? col) (when (sequential? col)
+                        (and (every? sequential? col)
+                             (every? empty? col)))))
+
 (defn load-ext-dependencies [ext-coordinates]
   "Loads provided dependencies (in bulk) and requires/imports specified namespaces/classes.
   ext-coordinates is supposed to be in a format of {:coordinates [[com.draines/postal \"2.0.2\"]] :require [[postal.core]] :import nil :repositories nil}"
-  (when-let [c (:coordinates ext-coordinates)]
-    (log/info "Loading external dependencies: \n" c " \n from repositories " (:repositories ext-coordinates))
-    (pom/add-dependencies :coordinates c
-                    :repositories (:repositories ext-coordinates)
+  (when-let [c (:coordinates ext-coordinates)] ;;FIXME allow :coordinates to be empty vector [] or [[]] - so also check if embedded seqs are empty (probably will have to walk the seq)
+    (when-not (effectively-empty? c)
+      (log/info "Loading external dependencies: \n" c " \n from repositories " (:repositories ext-coordinates))
+      (pom/add-dependencies :coordinates c
+                          :repositories (:repositories ext-coordinates)
                           :classloader (last (filter pom/modifiable-classloader?
-                                                     (pom/classloader-hierarchy)))) ;;:classloader (clojure.lang.RT/baseLoader)
-    (when-let [r (:require ext-coordinates)]
-      (log/info "Requiring external namespaces: " r)
-      (apply require r))
-    (when-let [i (:import ext-coordinates)]
-      (log/info "Importing external classes: " i)
-      (when (sequential? i) (mapv #(import %) i)))
-    (compliment.utils/flush-caches)
-    (titanoboa.exp/init-java-lambda-factory! (last (filter pom/modifiable-classloader?
-                                                           (pom/classloader-hierarchy))))))
+                                                     (pom/classloader-hierarchy)))))) ;;:classloader (clojure.lang.RT/baseLoader)
+  (when-let [r (:require ext-coordinates)]
+    (when-not (effectively-empty? r)
+    (log/info "Requiring external namespaces: " r)
+    (apply require r)))
+  (when-let [i (:import ext-coordinates)]
+    (log/info "Importing external classes: " i)
+    (when (and (sequential? i) (not (empty? i))) (mapv #(import %) i)))
+  (log/info "Finished loading external dependencies.")
+  (compliment.utils/flush-caches)
+  (titanoboa.exp/init-java-lambda-factory! (.getContextClassLoader (Thread/currentThread))))
 
- ;;TODO there might be need for retry in case the file stays locked for longer?
+;;TODO there might be need for retry in case the file stays locked for longer?
 (defrecord DepsWatcherComponent [deps-file-path stop-callback-fn last-content-atom]
   component/Lifecycle
   (start [this]
@@ -68,37 +76,37 @@
       (do
         (when-not (fs/exists? deps-file-path) (fs/create (File. deps-file-path)))
         (assoc this
-        :stop-callback-fn (start-watch [{:path       (if (fs/directory? deps-file-path) deps-file-path (-> deps-file-path
-                                                                                                            fs/parent
-                                                                                                            (.getAbsolutePath)))
-                                         :event-types [:modify]
-                                         :bootstrap   (fn [path]
-                                                        (let [coordinates (try
-                                                                            (read-string (slurp deps-file-path))
-                                                                            (catch Exception e
-                                                                              (log/error e "Error reading external dependencies file: does not exist or has invalid format.")
-                                                                              nil))]
-                                                          (log/info "Initialization: Loading external dependencies from " path)
-                                                          (reset! last-content-atom coordinates)
-                                                          (try (load-ext-dependencies coordinates)
-                                                               (catch Exception e
-                                                                 (log/error e "Error loading external dependencies!")))
-                                                          (log/info "Starting to watch external dependencies file for changes: " path)))
-                                         :callback    (fn [event filename]
-                                                        (when (= (File. filename) (File. deps-file-path))
-                                                          (locking lock
+          :stop-callback-fn (start-watch [{:path       (if (fs/directory? deps-file-path) deps-file-path (-> deps-file-path
+                                                                                                             fs/parent
+                                                                                                             (.getAbsolutePath)))
+                                           :event-types [:modify]
+                                           :bootstrap   (fn [path]
                                                           (let [coordinates (try
-                                                                              (read-string (slurp filename))
+                                                                              (read-string (slurp deps-file-path))
                                                                               (catch Exception e
                                                                                 (log/error e "Error reading external dependencies file: does not exist or has invalid format.")
                                                                                 nil))]
-                                                            (when (and coordinates (map? coordinates) (not= coordinates @last-content-atom))
-                                                              (log/info "Detected external dependencies change - event: " event " file: " filename " ; Reloading...")
-                                                              (try (load-ext-dependencies coordinates)
-                                                                   (reset! last-content-atom coordinates)
-                                                                   (catch Exception e
-                                                                     (log/error e "Error loading external dependencies!"))))))))
-                                         :options     {:recursive false}}])))))
+                                                            (log/info "Initialization: Loading external dependencies from " path)
+                                                            (reset! last-content-atom coordinates)
+                                                            (try (load-ext-dependencies coordinates)
+                                                                 (catch Exception e
+                                                                   (log/error e "Error loading external dependencies!")))
+                                                            (log/info "Starting to watch external dependencies file for changes: " path)))
+                                           :callback    (fn [event filename]
+                                                          (when (= (File. filename) (File. deps-file-path))
+                                                            (locking lock
+                                                              (let [coordinates (try
+                                                                                  (read-string (slurp filename))
+                                                                                  (catch Exception e
+                                                                                    (log/error e "Error reading external dependencies file: does not exist or has invalid format.")
+                                                                                    nil))]
+                                                                (when (and coordinates (map? coordinates) (not= coordinates @last-content-atom))
+                                                                  (log/info "Detected external dependencies change - event: " event " file: " filename " ; Reloading...")
+                                                                  (try (load-ext-dependencies coordinates)
+                                                                       (reset! last-content-atom coordinates)
+                                                                       (catch Exception e
+                                                                         (log/error e "Error loading external dependencies!"))))))))
+                                           :options     {:recursive false}}])))))
   (stop [this]
     (stop-callback-fn)
     (dissoc this :stop-callback-fn)))
@@ -147,8 +155,8 @@
         (when-not stale? ;;(throw (IllegalStateException. "The file you are trying to change has been changed by other user in the meantime!")))
           (spit f new-content)) ;;FIXME can I use spit with os opened? if not i would have to send .getBytes on string content to the os
         (not stale?)
-      (finally
-        (release-lock! raf l))))))
+        (finally
+          (release-lock! raf l))))))
 
 (defn log-cl-hierarchy []
   (when (log/enabled? :info)

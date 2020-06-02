@@ -93,8 +93,8 @@
       (POST "/jobs/:jobdef-name/:revision" [jobdef-name revision & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
                                                                 {:status 201 :body (processor/run-job! (util/tokey (http-util/url-decode system)) {:jobdef-name jobdef-name :revision revision :properties properties} false)})))
     (context "/cluster" []
-      (GET "/" []  {:status 404})
-      (GET "/id" [] {:status 404})
+      (GET "/" []  {:status 404 :body {:message "Clustering is disabled"}})
+      (GET "/id" [] {:status 404 :body {:message "Clustering is disabled"}})
       (GET "/jobs" [] {:body (api/get-jobs-states)})
       (GET "/dependencies" [] (if (deps/get-deps-path-property)
                                 {:status 200 :body {:dependencies (deps/get-deps-file-content)}}
