@@ -19,14 +19,17 @@
 (def java-lambda-factory (LambdaFactory/get))
 
 (defn init-java-lambda-factory!
-  ([cl]
-   (let [c-path (reduce (fn [v i] (str v (.getCanonicalPath i) java.io.File/pathSeparatorChar)) "" (cp/classpath cl))]
-     (log/debug "Java lambda will use following classpath: " c-path)
-     (alter-var-root #'java-lambda-factory (constantly (LambdaFactory/get (-> (LambdaFactoryConfiguration/get)
-                                                                              (.withParentClassLoader cl)
-                                                                              (.withCompilationClassPath c-path)))))))
+  ([cl & [imports]]
+   (let [c-path (reduce (fn [v i] (str v (.getCanonicalPath i) java.io.File/pathSeparatorChar)) "" (cp/classpath cl))
+         config (-> (LambdaFactoryConfiguration/get)
+                    (.withParentClassLoader cl)
+                    (.withCompilationClassPath c-path))
+         config (if imports
+                  (.withImports config (into-array String imports))
+                  config)]
+     (alter-var-root #'java-lambda-factory (constantly (LambdaFactory/get config)))))
   ([]
-   (init-java-lambda-factory! (LambdaFactory/get))))
+   (alter-var-root #'java-lambda-factory (constantly (LambdaFactory/get)))))
 
 (defrecord Expression [value type])
 
@@ -47,6 +50,7 @@
                      'titanoboa.exp/Expression #'titanoboa.exp/read-expression
                      'megalodon.exp.Expression #'titanoboa.exp/read-expression
                      'megalodon.exp/Expression #'titanoboa.exp/read-expression})
+
 
 (defn expression? [exp]
   (= (type exp) titanoboa.exp.Expression))

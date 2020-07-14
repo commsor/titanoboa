@@ -67,8 +67,8 @@
                                                                          :user (or (get-in r [:auth-user :name]) "anonymous")
                                                                          :revision-notes (or notes "")})
                                                             :status 201})
-      (POST "/:def-name/repl" [def-name snippet type properties] {:body {:result (exp/eval-snippet snippet type properties (symbol def-name))}})
-      (POST "/:def-name/autocomplete" [def-name snippet] {:body {:result (->>(compliment/completions snippet)
+      (POST "/:def-name/repl" [def-name snippet type properties] {:body {:result (exp/eval-snippet snippet type properties 'titanoboa.exp)}})
+      (POST "/:def-name/autocomplete" [def-name snippet] {:body {:result (->>(compliment/completions snippet {:ns 'titanoboa.exp})
                                                                              (mapv (fn [{:keys [candidate]}]
                                                                                      candidate))
                                                                              (take 50))}}))

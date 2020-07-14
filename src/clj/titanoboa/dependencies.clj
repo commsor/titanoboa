@@ -9,7 +9,8 @@
             [dynapath.util :as dp]
             [dynapath.dynamic-classpath :as dc]
             [compliment.utils]
-            [titanoboa.exp])
+            [titanoboa.exp :as exp]
+            [clojure.walk :as walk])
   (:import (java.io File FileOutputStream)))
 
 (def dependencies-path-property "boa.server.dependencies.path")
@@ -40,16 +41,28 @@
 
 (def ext-deps-system nil)
 
-(defn effectively-empty? [col]
+#_(defn effectively-empty? [col]
   "Returns true is collection is empty or contains empty collections. returns also true if not a sequence."
   (or (not (sequential? col)) (empty? col) (when (sequential? col)
                         (and (every? sequential? col)
                              (every? empty? col)))))
 
+(defn effectively-empty? [col]
+  (empty? (flatten col)))
+
+(defn normalize-imports [imports norm-fn]
+  (when imports
+    (let [norm-fn (or norm-fn constantly)
+        imports (walk/prewalk exp/eval-property imports)]
+  (cond
+    (and (sequential? imports) (not (effectively-empty? imports))) (map #(norm-fn %) (flatten imports))
+    (not (sequential? imports)) [(norm-fn imports)]
+    :else nil))))
+
 (defn load-ext-dependencies [ext-coordinates]
   "Loads provided dependencies (in bulk) and requires/imports specified namespaces/classes.
   ext-coordinates is supposed to be in a format of {:coordinates [[com.draines/postal \"2.0.2\"]] :require [[postal.core]] :import nil :repositories nil}"
-  (when-let [c (:coordinates ext-coordinates)] ;;FIXME allow :coordinates to be empty vector [] or [[]] - so also check if embedded seqs are empty (probably will have to walk the seq)
+  (when-let [c (:coordinates ext-coordinates)]
     (when-not (effectively-empty? c)
       (log/info "Loading external dependencies: \n" c " \n from repositories " (:repositories ext-coordinates))
       (pom/add-dependencies :coordinates c
@@ -59,13 +72,14 @@
   (when-let [r (:require ext-coordinates)]
     (when-not (effectively-empty? r)
     (log/info "Requiring external namespaces: " r)
-    (apply require r)))
-  (when-let [i (:import ext-coordinates)]
-    (log/info "Importing external classes: " i)
-    (when (and (sequential? i) (not (empty? i))) (mapv #(import %) i)))
+    (apply require r))) ;;TODO maybe require them in titanoboa.exp (or other dedicated) namespace?
+  (when-let [i (normalize-imports (:import ext-coordinates) symbol)]
+    (log/info "Importing external classes: " i) ;;TODO import them in titanoboa.exp (or other dedicated) namespace!
+       (when (and (sequential? i) (not (empty? i))) (let [nspace (find-ns 'titanoboa.exp)]
+                                                              (mapv #(.importClass nspace (resolve %)) i))))
   (log/info "Finished loading external dependencies.")
   (compliment.utils/flush-caches)
-  (titanoboa.exp/init-java-lambda-factory! (.getContextClassLoader (Thread/currentThread))))
+  (titanoboa.exp/init-java-lambda-factory! (.getContextClassLoader (Thread/currentThread)) (normalize-imports (:import ext-coordinates) str)))
 
 ;;TODO there might be need for retry in case the file stays locked for longer?
 (defrecord DepsWatcherComponent [deps-file-path stop-callback-fn last-content-atom]
