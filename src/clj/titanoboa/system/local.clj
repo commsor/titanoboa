@@ -15,8 +15,8 @@
     :node-id node-id
     :job-state (agent {})
     :eviction-list (agent {})
-    :eviction-worker (component/using (cache/map->CacheEvictionComponent {:eviction-interval (or eviction-interval 60000)
-                                                                          :eviction-age (or eviction-age 120000)})
+    :eviction-worker (component/using (cache/map->CacheEvictionComponent {:eviction-interval (or eviction-interval (* 1000 60 15))
+                                                                          :eviction-age (or eviction-age (* 1000 60 120))})
                                       {:eviction-agent :eviction-list
                                        :job-cache-agent :job-state})
     :job-defs (atom (titanoboa.repo/get-all-revisions! jobs-repo-path))

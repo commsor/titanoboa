@@ -15,5 +15,5 @@
                                               {:new-jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024))
                                                :jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024))
                                                :finished-jobs-chan archival-queue-local
-                                               :eviction-interval (* 1000 60 5)
-                                               :eviction-age (* 1000 60 60)}}}))
+                                               :eviction-interval (* 1000 60 15)
+                                               :eviction-age (* 1000 60 120)}}}))
