@@ -48,7 +48,8 @@
                              (every? empty? col)))))
 
 (defn effectively-empty? [col]
-  (empty? (flatten col)))
+  (or (empty? (flatten col))
+      (every? #(or (= "" %) (nil? %)) (flatten col))))
 
 (defn normalize-imports [imports norm-fn]
   (when imports
