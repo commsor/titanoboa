@@ -81,17 +81,17 @@
       (PATCH "/" [action wcount scope]
         {:body
          (case action
-           :stop (do (system/stop-system! (util/tokey (http-util/url-decode system))) {:status 200})
+           :stop (do (system/stop-system! (util/s->key (http-util/url-decode system))) {:status 200})
            ;;:start (system/start-system! (util/tokey system) systems-catalogue config)
-           :start (do (system/start-system-bundle! (util/tokey (http-util/url-decode system)) systems-catalogue config (int (or wcount 0)) scope) {:status 200})
-           :restart {:status 200 :body (system/restart-system! (util/tokey (http-util/url-decode system)) systems-catalogue config)})})
-      (POST "/workers" [] {:body (system/start-workers! (util/tokey (http-util/url-decode system)) systems-catalogue 1)});; TODO add PATCH to stop/start workers?
+           :start (do (system/start-system-bundle! (util/s->key (http-util/url-decode system)) systems-catalogue config (int (or wcount 0)) scope) {:status 200})
+           :restart {:status 200 :body (system/restart-system! (util/s->key (http-util/url-decode system)) systems-catalogue config)})})
+      (POST "/workers" [] {:body (system/start-workers! (util/s->key (http-util/url-decode system)) systems-catalogue 1)});; TODO add PATCH to stop/start workers?
       (POST "/jobs" [sync & conf] (do (log/debug "Recieved request to start a job on system [" (http-util/url-decode system) "] with config ["conf"]")
-                               {:status 201 :body (processor/run-job! (util/tokey (http-util/url-decode system)) conf sync)}))
+                               {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system)) conf sync)}))
       (POST "/jobs/:jobdef-name" [jobdef-name & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
-                                      {:status 201 :body (processor/run-job! (util/tokey (http-util/url-decode system)) {:jobdef-name jobdef-name :properties properties} false)}))
+                                      {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system)) {:jobdef-name jobdef-name :properties properties} false)}))
       (POST "/jobs/:jobdef-name/:revision" [jobdef-name revision & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
-                                                                {:status 201 :body (processor/run-job! (util/tokey (http-util/url-decode system)) {:jobdef-name jobdef-name :revision revision :properties properties} false)})))
+                                                                {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system)) {:jobdef-name jobdef-name :revision revision :properties properties} false)})))
     (context "/cluster" []
       (GET "/" []  {:status 404 :body {:message "Clustering is disabled"}})
       (GET "/id" [] {:status 404 :body {:message "Clustering is disabled"}})
