@@ -93,7 +93,7 @@
             *properties* properties] ;;TODO bind *job* and *properties* based on some test data
     (try (if (= "java" type)
            (-> java-lambda-factory
-               (.createLambdaUnchecked s (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, java.util.Map>"))
+               (.createLambdaUnchecked s (DynamicTypeReference. "Function< java.util.Map, java.util.Map>"))
                (.apply (eval-properties properties {})))
            (load-string s))
          (catch Exception e
@@ -119,7 +119,7 @@
   ([expr arg1]
    (cond (java-expression? expr) (do (when-not (string? (:value expr)) (throw (java.lang.IllegalStateException. "Value of java lambda expression must be String!")))
                                             (-> java-lambda-factory
-                                                (.createLambdaUnchecked (:value expr) (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, java.util.Map>"))
+                                                (.createLambdaUnchecked (:value expr) (DynamicTypeReference. "Function< java.util.Map, java.util.Map>"))
                                                 (.apply arg1)))
          :else  (-> expr
                     eval-exfn
@@ -128,7 +128,7 @@
   ([expr arg1 arg2]
    (cond (java-expression? expr) (do (when-not (string? (:value expr)) (throw (java.lang.IllegalStateException. "Value of java lambda expression must be String!")))
                                             (-> java-lambda-factory
-                                                (.createLambdaUnchecked (:value expr) (DynamicTypeReference. "Function< clojure.lang.PersistentArrayMap, java.util.Map>"))
+                                                (.createLambdaUnchecked (:value expr) (DynamicTypeReference. "Function< java.util.Map, java.util.Map>"))
                                                 (.apply arg1 arg2)))
          :else  (-> expr
                     eval-exfn
