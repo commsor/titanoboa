@@ -3,7 +3,9 @@
 [![Demo](https://img.shields.io/badge/has-demo-green.svg)](https://www.titanoboa.io/demo.html)
 
 ## Synopsis
-Titanoboa is fully distributed, highly scalable and fault tolerant workflow orchestration platform.
+Titanoboa makes complex integrations and workflows easy. 
+
+It is a fully distributed, highly scalable and fault tolerant workflow orchestration platform.
 It employs hybrid iPaaS concepts and runs on the JVM.
 You can run it on-premises or in a cloud.
 
