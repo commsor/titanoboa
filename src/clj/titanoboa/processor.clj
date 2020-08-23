@@ -212,9 +212,9 @@
                          {step-id :id}                                                                                                  :step map-steps :map-steps jobdir :jobdir jobid :jobid :as job}]
   (assert jobdir)
   (when standalone-system? ;; TODO add also implement check for distributed-system? - whether or not start the system only on the current node or on all (or potentially some) nodes; alternatively this could be retrieved from the system catalogue (e.g. assumed async.core based system is inherently NOT distributed)
-    (channel/with-mq-session (channel/current-session)
+    (when *cmd-exchange-ch* (channel/with-mq-session (channel/current-session)
                              (async/>!! *cmd-exchange-ch*
-                                        `(titanoboa.system/start-system-bundle! ~sys-key (:systems-catalogue ~'titanoboa.server/server-config) ~'titanoboa.server/server-config ~workers-count ~jobid)))
+                                        `(titanoboa.system/start-system-bundle! ~sys-key (:systems-catalogue ~'titanoboa.server/server-config) ~'titanoboa.server/server-config ~workers-count ~jobid))))
     (system/start-system-bundle! sys-key (:systems-catalogue *server-config*) *server-config* workers-count jobid))
   (let [sys-key (if standalone-system? (system/scope->key sys-key jobid) sys-key)
         result-seq (exp/run-workload-fn job)
@@ -259,91 +259,91 @@
       result-seq)))
 
 (defn process-reduce-step [{{:keys [terminate-standalone? map-step-id commit-interval] :as properties} :properties
-                         {step-id :id :as step} :step map-steps :map-steps jobdir :jobdir jobid :jobid :as job}]
-  (assert jobdir) ;;TODO use try/catch?
-    (let [map-step (get map-steps map-step-id)
-          _ (assert map-step "No matching map step found for a reduce step." )
-          {:keys [dispatched-indexes aggregator-notif-ch aggregator-callback-ch standalone-system? sys-key]} map-step
-          dispatched-count (count dispatched-indexes)
-          workload-fn (get step :workload-fn)
-          map-step-id-log (java.io.File. jobdir (str step-id ".reduce.notif"))
-          map-step-id-tuples (if-not (.exists map-step-id-log) (atom nil) (atom (read-string (slurp map-step-id-log))))
-          processed-indexes (atom #{})
-          processed-count (atom 0)
-          uncommitted-msgs (atom [])
-          commit-log-tuples (java.io.File. jobdir (str step-id ".reduce.log"))
-          processed-tuples (if-not (.exists commit-log-tuples) (atom [])
-                                                               (atom (read-string (str "[" (slurp commit-log-tuples) "]")))) ;;FIXME read only if non zero size!!!
-           #_(when-not (.exists commit-log-tuples) (.createNewFile commit-log-tuples))
-          commit-log (java.io.File. jobdir (str step-id ".reduce.result"))
-          commit-log-bkp (java.io.File. jobdir (str step-id ".reduce.result.bkp"))
-          failover? (.exists commit-log)
-          result (if-not failover? nil
-                                   (try
-                                     (with-open [in (DataInputStream. (io/input-stream commit-log))] ;;FIXME read only if non zero size!!!
-                                         (nippy/thaw-from-in! in))
-                                     (catch Exception e
-                                       (log/warn "Failed to read from commit log of a reduce step " step-id "! Trying to read redundant log file...")
-                                       (with-open [in (DataInputStream. (io/input-stream commit-log-bkp))] ;;FIXME read only if non zero size!!!
-                                         (nippy/thaw-from-in! in)))))
-           #_(when-not failover? (.createNewFile commit-log)
-                                (.createNewFile commit-log-bkp))
-          commit-fn (fn [r] ;;TODO keep the output streams opened to improve performance (close them when finished and on exception) - i.e. take the stream as an input argument; move the with open macro out and embed the whole loop in it
-                      (with-open [w (DataOutputStream. (io/output-stream commit-log))]
-                        (nippy/freeze-to-out! w r)
-                          (.flush w))
-                      (with-open [writer (clojure.java.io/writer commit-log-tuples :append true)]
-                        (doall (map #(.write writer (str [(:tracking-id %) (:jobid %)])) @uncommitted-msgs))
-                        (.flush writer))
-                      (doall (map #(channel/ack! aggregator-callback-ch %) @uncommitted-msgs))
-                      (with-open [w (DataOutputStream. (io/output-stream commit-log-bkp))]
-                        (nippy/freeze-to-out! w r)
-                        (.flush w))
-                      (reset! uncommitted-msgs []))
-      _ (log/debug "Reduce step " step-id " is starting to poll following aggregator-callback channel: [" aggregator-callback-ch "]. Awaiting [" dispatched-count "] dispatched messages...")
-      _ (log/debug "Map step is " map-step)
-      end-result (loop [result result]
-        (channel/alt!! [aggregator-callback-ch aggregator-notif-ch]
-                       ([m ch]
-                         (cond
-                           (= ch aggregator-callback-ch) (let [r (exp/run-exfn workload-fn result (:properties m))] ;;
-                                                           (log/debug "Aggregator step " step-id " retrieved a callback message from a splitter step: " m)
-                                                             (swap! processed-count inc) ;;TODO currently this is now single-threaded but if multithreaded in future use STM!
-                                                             (swap! processed-indexes conj (:tracking-id m))
-                                                             (swap! processed-tuples conj [(:tracking-id m) (:jobid m)])
-                                                             (swap! uncommitted-msgs conj m)
-                                                             (when-not (< (count @uncommitted-msgs) commit-interval)
-                                                               (commit-fn r))
-                                                             (if (and (>= @processed-count dispatched-count) @map-step-id-tuples (subset? (set @map-step-id-tuples) (set @processed-tuples)))
-                                                               (do (log/debug "NOT RECURRING; sets are " (set @map-step-id-tuples) (set @processed-tuples))
-                                                                   (when-not (empty? @uncommitted-msgs) (commit-fn r))
-                                                                   (channel/ack! ch @map-step-id-tuples)
-                                                                    r)
-                                                               (do (log/debug "RECURRING; sets are " (set @map-step-id-tuples) (set @processed-tuples))
-                                                                   (recur r))))
-                           (= ch aggregator-notif-ch) (do (log/debug "Aggregator step " step-id " retrieved a notification message from a splitter step: " m)
-                                                          (reset! map-step-id-tuples m)
-                                                          (spit map-step-id-log m)
-                                                          (if (and (>= @processed-count dispatched-count) (subset? (set @map-step-id-tuples) (set @processed-tuples)))
-                                                            (do (log/debug "NOT RECURRING ; sets are " (set @map-step-id-tuples) (set @processed-tuples))
-                                                                (when-not (empty? @uncommitted-msgs) (commit-fn result))
-                                                                (channel/ack! ch @map-step-id-tuples)
-                                                                result)
-                                                            (do (log/debug "RECURRING ; sets are " (set @map-step-id-tuples) (set @processed-tuples))
-                                                                (recur result))))
-                           :else (throw (IllegalStateException. "Unexpected channel responded to blocking alt!!"))))
-                       :priority true))]
-      (thread
-        (channel/delete-mq-chan aggregator-callback-ch)
-        (channel/delete-mq-chan aggregator-notif-ch)
-        (when (and standalone-system? terminate-standalone? sys-key)
-          (channel/with-mq-session (channel/current-session)
-                                 (async/>!! *cmd-exchange-ch*
-                                            `(titanoboa.system/stop-system! ~sys-key ~jobid)))
-          (let [stopped-system (system/stop-system! sys-key jobid)]
-            (Thread/sleep 1000)
-            (system/cleanup-system! stopped-system))))
-      {:result end-result :reduce-step {:map-step-id map-step-id :map-step-id-tuples @map-step-id-tuples}})
+                            {step-id :id :as step}                                                     :step map-steps :map-steps jobdir :jobdir jobid :jobid :as job}]
+  (assert jobdir)                                           ;;TODO use try/catch?
+  (let [map-step (get map-steps map-step-id)
+        _ (assert map-step "No matching map step found for a reduce step.")
+        {:keys [dispatched-indexes aggregator-notif-ch aggregator-callback-ch standalone-system? sys-key]} map-step
+        dispatched-count (count dispatched-indexes)
+        workload-fn (get step :workload-fn)
+        map-step-id-log (java.io.File. jobdir (str step-id ".reduce.notif"))
+        map-step-id-tuples (if-not (.exists map-step-id-log) (atom nil) (atom (read-string (slurp map-step-id-log))))
+        processed-indexes (atom #{})
+        processed-count (atom 0)
+        uncommitted-msgs (atom [])
+        commit-log-tuples (java.io.File. jobdir (str step-id ".reduce.log"))
+        processed-tuples (if-not (.exists commit-log-tuples) (atom [])
+                                                             (atom (read-string (str "[" (slurp commit-log-tuples) "]")))) ;;FIXME read only if non zero size!!!
+        #_(when-not (.exists commit-log-tuples) (.createNewFile commit-log-tuples))
+        commit-log (java.io.File. jobdir (str step-id ".reduce.result"))
+        commit-log-bkp (java.io.File. jobdir (str step-id ".reduce.result.bkp"))
+        failover? (.exists commit-log)
+        result (if-not failover? nil
+                                 (try
+                                   (with-open [in (DataInputStream. (io/input-stream commit-log))] ;;FIXME read only if non zero size!!!
+                                     (nippy/thaw-from-in! in))
+                                   (catch Exception e
+                                     (log/warn "Failed to read from commit log of a reduce step " step-id "! Trying to read redundant log file...")
+                                     (with-open [in (DataInputStream. (io/input-stream commit-log-bkp))] ;;FIXME read only if non zero size!!!
+                                       (nippy/thaw-from-in! in)))))
+        #_(when-not failover? (.createNewFile commit-log)
+                              (.createNewFile commit-log-bkp))
+        commit-fn (fn [r]                                   ;;TODO keep the output streams opened to improve performance (close them when finished and on exception) - i.e. take the stream as an input argument; move the with open macro out and embed the whole loop in it
+                    (with-open [w (DataOutputStream. (io/output-stream commit-log))]
+                      (nippy/freeze-to-out! w r)
+                      (.flush w))
+                    (with-open [writer (clojure.java.io/writer commit-log-tuples :append true)]
+                      (doall (map #(.write writer (str [(:tracking-id %) (:jobid %)])) @uncommitted-msgs))
+                      (.flush writer))
+                    (doall (map #(channel/ack! aggregator-callback-ch %) @uncommitted-msgs))
+                    (with-open [w (DataOutputStream. (io/output-stream commit-log-bkp))]
+                      (nippy/freeze-to-out! w r)
+                      (.flush w))
+                    (reset! uncommitted-msgs []))
+        _ (log/debug "Reduce step " step-id " is starting to poll following aggregator-callback channel: [" aggregator-callback-ch "]. Awaiting [" dispatched-count "] dispatched messages...")
+        _ (log/debug "Map step is " map-step)
+        end-result (loop [result result]
+                     (channel/alt!! [aggregator-callback-ch aggregator-notif-ch]
+                                    ([m ch]
+                                      (cond
+                                        (= ch aggregator-callback-ch) (let [r (exp/run-exfn workload-fn result (:properties m))] ;;
+                                                                        (log/debug "Aggregator step " step-id " retrieved a callback message from a splitter step: " m)
+                                                                        (swap! processed-count inc) ;;TODO currently this is now single-threaded but if multithreaded in future use STM!
+                                                                        (swap! processed-indexes conj (:tracking-id m))
+                                                                        (swap! processed-tuples conj [(:tracking-id m) (:jobid m)])
+                                                                        (swap! uncommitted-msgs conj m)
+                                                                        (when-not (< (count @uncommitted-msgs) commit-interval)
+                                                                          (commit-fn r))
+                                                                        (if (and (>= @processed-count dispatched-count) @map-step-id-tuples (subset? (set @map-step-id-tuples) (set @processed-tuples)))
+                                                                          (do (log/debug "NOT RECURRING; sets are " (set @map-step-id-tuples) (set @processed-tuples))
+                                                                              (when-not (empty? @uncommitted-msgs) (commit-fn r))
+                                                                              (channel/ack! ch @map-step-id-tuples)
+                                                                              r)
+                                                                          (do (log/debug "RECURRING; sets are " (set @map-step-id-tuples) (set @processed-tuples))
+                                                                              (recur r))))
+                                        (= ch aggregator-notif-ch) (do (log/debug "Aggregator step " step-id " retrieved a notification message from a splitter step: " m)
+                                                                       (reset! map-step-id-tuples m)
+                                                                       (spit map-step-id-log m)
+                                                                       (if (and (>= @processed-count dispatched-count) (subset? (set @map-step-id-tuples) (set @processed-tuples)))
+                                                                         (do (log/debug "NOT RECURRING ; sets are " (set @map-step-id-tuples) (set @processed-tuples))
+                                                                             (when-not (empty? @uncommitted-msgs) (commit-fn result))
+                                                                             (channel/ack! ch @map-step-id-tuples)
+                                                                             result)
+                                                                         (do (log/debug "RECURRING ; sets are " (set @map-step-id-tuples) (set @processed-tuples))
+                                                                             (recur result))))
+                                        :else (throw (IllegalStateException. "Unexpected channel responded to blocking alt!!"))))
+                                    :priority true))]
+    (thread
+      (channel/delete-mq-chan aggregator-callback-ch)
+      (channel/delete-mq-chan aggregator-notif-ch)
+      (when (and standalone-system? terminate-standalone? sys-key)
+        (when *cmd-exchange-ch* (channel/with-mq-session (channel/current-session)
+                                                         (async/>!! *cmd-exchange-ch*
+                                                                    `(titanoboa.system/stop-system! ~sys-key ~jobid))))
+        (let [stopped-system (system/stop-system! sys-key jobid)]
+          (Thread/sleep 1000)
+          (system/cleanup-system! stopped-system))))
+    {:result end-result :reduce-step {:map-step-id map-step-id :map-step-id-tuples @map-step-id-tuples}})
     ;;TODO remove given map-step-id from the map-steps map and pass it on? - so as same map step cannot be processed by two separate reduce steps?
   ;;FIXME test if works when used on undistributed system with async channels!!!
 )
@@ -526,7 +526,7 @@
                         #(merge-with (fn [i1 i2]
                                        (try (f i1 i2)
                                             (catch Exception e
-                                              (log/warn "Failed to merge properties during join: " e)
+                                              (log/warn "Failed to merge properties " i1 " and " i2 " during join: " e)
                                               i2))) %1 %2)
                         merge)
         threads2merge (-> parallel-threads
