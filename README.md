@@ -117,7 +117,7 @@ If you want to use GUI you can clone the titanoboa-gui repository as well:
 
     git clone https://github.com/mikub/titanoboa-gui
     
-**Note**: _The GUI is free for non-commercial use only_
+**Note**: _The GUI is now also free for commercial use. Yay!_
 
 then merge GUI's _public_ folder into the uberjar:
 
