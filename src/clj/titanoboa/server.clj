@@ -68,7 +68,7 @@
     (require ns)
     (log/info "Successfully required namespace" ns )
     (catch Exception e
-      (log/error e "Failed to require namespace" ns))))
+      (log/warn e "Failed to require namespace" ns))))
 
 (defn require-extensions []
   (log/info "Loading database extensions...")
@@ -141,7 +141,6 @@
       (.setContextClassLoader (Thread/currentThread) cl)
       (log/info "Starting Titanoboa server...")
       (.addShutdownHook (Runtime/getRuntime) (Thread. shutdown-runtime!))
-      (require-extensions)
       (load-dependencies!)
       (init-config! cfg host)
       (init-job-folder!  (:job-folder-path server-config))
@@ -153,7 +152,7 @@
                                              (:jetty server-config)))))))
 
 (defn run-db-setup! [db-conf-path script-path]
-  (require-extensions)
+  (load-dependencies!)
   (system/start-system! :db
                         {:db {:system-def #'titanoboa.system.jdbc/jdbc-pool}}
                         (edn/read-string (slurp db-conf-path)))
@@ -162,7 +161,7 @@
   (system/stop-all-systems!))
 
 (defn add-user! [db-conf-path name password email level]
-  (require-extensions)
+  (load-dependencies!)
   (system/start-system! :db
                         {:db {:system-def #'system.jdbc/jdbc-pool}}
                         (edn/read-string (slurp db-conf-path)))
