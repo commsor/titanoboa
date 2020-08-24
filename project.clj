@@ -1,4 +1,4 @@
-(defproject io.titanoboa/titanoboa "0.8.4"
+(defproject io.titanoboa/titanoboa "0.9.0"
   :description "titanoboa.io is fully distributed, highly scalable and fault tolerant workflow orchestration platform"
   :url "http://titanoboa.io"
   :license {:name "GNU Affero General Public License"
@@ -38,7 +38,10 @@
                  [org.clojure/java.jdbc "0.7.1"]
                  [com.mchange/c3p0 "0.9.5.2"]
                  [honeysql "0.9.1"]
-                 [org.postgresql/postgresql "9.4.1208"]
+                 ;;uncomment following for RDBMS archival use - or just add it into the external dependencies file ;)
+                 #_[org.postgresql/postgresql "9.4.1208"]
+                 ;;uncomment following for Rabbit MQ use as a job channel - or just add it into the external dependencies file ;)
+                 #_[com.novemberain/langohr "3.5.0" :exclusions [cheshire]]
                  [io.titanoboa/titanoboa-java "0.1.0"]
                  [io.titanoboa/compliment "0.3.9"]]
 
@@ -53,7 +56,9 @@
                                        [com.cemerick/pomegranate "1.0.0" :exclusions [org.tcrawley/dynapath]]]}}
 
   :repositories [["atlassian" 	"https://maven.atlassian.com/3rdparty/"]]
-
+  :test-selectors {:default (fn [m] (not (or (:integration m) (:rmq m))))
+                   :integration :integration
+                   :rmq :rmq}
   :jar-name "titanoboa.jar"
   :target-path "build/%s/"
   :libdir-path "lib"
