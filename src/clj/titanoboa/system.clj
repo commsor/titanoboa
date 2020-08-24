@@ -1,3 +1,11 @@
+; Copyright (c) Miroslav Kubicek. All rights reserved.
+; The use and distribution terms for this software are covered by the
+; GNU Affero General Public License v3.0 (https://www.gnu.org/licenses/#AGPL)
+; which can be found in the LICENSE at the root of this distribution.
+; By using this software in any fashion, you are agreeing to be bound by
+; the terms of this license.
+; You must not remove this notice, or any other, from this software.
+
 (ns titanoboa.system
   (:require [com.stuartsierra.component :as component]
             [clojure.tools.logging :as log]
@@ -62,7 +70,7 @@
   (locking lock
     (let [ns-sys-key (scope->key sys-key scope)]
       (if-not (get @systems-state ns-sys-key)
-        (let [{:keys [system-def worker-def]} (sys-key systems-catalogue)];;TODO add error handling and corresponding state :error
+        (let [{:keys [system-def worker-def]} (get systems-catalogue sys-key)];;TODO add error handling and corresponding state :error
           (log/info "Starting system" sys-key "...")
           (if worker-def
             (swap! systems-state assoc ns-sys-key {:system nil :state :starting :workers []})
@@ -85,7 +93,7 @@
   (locking lock
     (let [ns-sys-key (scope->key sys-key scope)]
       (if (is-running? ns-sys-key systems-state)
-        (let [{:keys [worker-def worker-count]} (sys-key systems-catalogue)
+        (let [{:keys [worker-def worker-count]} (get systems-catalogue sys-key)
               system (get-in @systems-state [ns-sys-key :system])
               n (or  w-cnt worker-count n-cpu)]
           (log/info "Starting" n "workers for system" ns-sys-key ":")
