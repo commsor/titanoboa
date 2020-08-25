@@ -42,7 +42,7 @@ Titanoboa's in-browser [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting
 Titanoboa is **designed for both java & clojure developers** and we are striving to make it **[usable even for java developers with no prior clojure knowledge](#-developing-custom-workflow-steps-in-java)**.
 
 ## Predefined Steps
-Though it is easy to rapidly develop new workflow steps directly from GUI, there is a number of ready-made steps and tasklets in [this repository](https://github.com/mikub/titanoboa-tasklets).
+Though it is easy to rapidly develop new workflow steps directly from GUI (as shown in our [demo](https://www.titanoboa.io/demo.html)), there is a number of ready-made steps and tasklets in [this repository](https://github.com/mikub/titanoboa-tasklets).
 Some of the steps included are: 
 - AWS (EC2, S3, SNS, SQS, SES)
 - Http Client
@@ -51,6 +51,8 @@ Some of the steps included are:
 - PDF Generation 
 
 and more.
+
+It is super easy to create your own custom ready-made steps - see our [wiki](https://github.com/mikub/titanoboa/wiki/Adding-Custom-Step-Types-and-Icons-to-GUI). You can even add custom icons!
 
 ## Prerequisites
 Java 8 or higher.
