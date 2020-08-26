@@ -52,7 +52,7 @@ Some of the steps included are:
 
 and more.
 
-It is super easy to add your own custom ready-made steps into the GUI - see our [wiki](https://github.com/mikub/titanoboa/wiki/Adding-Custom-Step-Types-and-Icons-to-GUI). You can even add custom icons!
+If you [created your own custom steps](https://github.com/mikub/titanoboa/wiki/Designing-Workflows) (in [java](#-developing-custom-workflow-steps-in-java) or [clojure](https://github.com/mikub/titanoboa/wiki/Designing-Workflows)) and you wish to reuse them in other workflows it is super easy to add your own custom ready-made steps into the GUI - see our [wiki](https://github.com/mikub/titanoboa/wiki/Adding-Custom-Step-Types-and-Icons-to-GUI). You can even add custom icons!
 
 ## Prerequisites
 Java 8 or higher.
