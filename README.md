@@ -45,6 +45,7 @@ Titanoboa is **designed for both java & clojure developers** and we are striving
 Though it is easy to rapidly develop new workflow steps directly from GUI (as shown in our [demo](https://www.titanoboa.io/demo.html)), there is a number of ready-made steps and tasklets in [this repository](https://github.com/mikub/titanoboa-tasklets).
 Some of the steps included are: 
 - AWS (EC2, S3, SNS, SQS, SES)
+- JDBC Client
 - Http Client
 - Smtp Client
 - Sftp
