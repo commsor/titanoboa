@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.com/mikub/titanoboa.svg?branch=master)](https://travis-ci.com/mikub/titanoboa)
 [![Join the chat at https://gitter.im/titanoboa_io/community](https://badges.gitter.im/titanoboa_io/community.svg)](https://gitter.im/titanoboa_io/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Demo](https://img.shields.io/badge/view-demo-green.svg)](https://www.titanoboa.io/demo.html)
-[![Demo](https://img.shields.io/badge/start-free%20hosted%20instance%20with%20one%20click-orange.svg)](https://cloud.titanoboa.io)
+[![Demo](https://img.shields.io/badge/start-a%20free%20hosted%20instance%20with%20one%20click-orange.svg?logo=serverless)](https://cloud.titanoboa.io)
 
 ## Synopsis
 Titanoboa makes complex integrations and workflows easy. 
