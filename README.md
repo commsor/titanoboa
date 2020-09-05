@@ -1,6 +1,7 @@
 [![Build Status](https://travis-ci.com/mikub/titanoboa.svg?branch=master)](https://travis-ci.com/mikub/titanoboa)
 [![Join the chat at https://gitter.im/titanoboa_io/community](https://badges.gitter.im/titanoboa_io/community.svg)](https://gitter.im/titanoboa_io/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Demo](https://img.shields.io/badge/view-demo-green.svg)](https://www.titanoboa.io/demo.html)
+[![Demo](https://img.shields.io/badge/start-free%20hosted%20instance%20with%20one%20click-orange.svg)](https://cloud.titanoboa.io)
 
 ## Synopsis
 Titanoboa makes complex integrations and workflows easy. 
@@ -58,8 +59,10 @@ If you [created your own custom steps](https://github.com/mikub/titanoboa/wiki/D
 ## Prerequisites
 Java 8 or higher.
 
-## Installation 
-We suggest giving titanoboa's GUI a try as well since it is the best starting point!
+## Installation
+**By the way, you don't need to install anything as you can just start a free hosted instance in your browser with one click! Just head to https://cloud.titanoboa.io**
+
+But if you want, install away! We suggest giving titanoboa's GUI a try as well since it is the best starting point!
 Download titanoboa's distribution including its GUI from https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_gui.zip 
 
     curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_gui.zip
