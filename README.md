@@ -1,6 +1,7 @@
 [![Build Status](https://travis-ci.com/mikub/titanoboa.svg?branch=master)](https://travis-ci.com/mikub/titanoboa)
 [![Join the chat at https://gitter.im/titanoboa_io/community](https://badges.gitter.im/titanoboa_io/community.svg)](https://gitter.im/titanoboa_io/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Demo](https://img.shields.io/badge/view-demo-green.svg)](https://www.titanoboa.io/demo.html)
+[![Docker Pulls](https://img.shields.io/docker/pulls/titanoboa/titanoboa.svg)](https://hub.docker.com/r/titanoboa/titanoboa/)
 [![Demo](https://img.shields.io/badge/start-a%20free%20hosted%20instance%20with%20one%20click-orange.svg?logo=serverless)](https://cloud.titanoboa.io)
 
 ## Synopsis
@@ -59,6 +60,9 @@ If you [created your own custom steps](https://github.com/mikub/titanoboa/wiki/D
 ## Prerequisites
 Java 8 or higher.
 
+## Docker Image
+[![Docker Pulls](https://img.shields.io/docker/pulls/titanoboa/titanoboa.svg)](https://hub.docker.com/r/titanoboa/titanoboa/)
+Docker image is available in [titanoboa/titanoboa](https://hub.docker.com/r/titanoboa/titanoboa)
 ## Installation
 **By the way, you don't need to install anything as you can just start a free hosted instance in your browser with one click! Just head to https://cloud.titanoboa.io**
 
@@ -75,7 +79,7 @@ __Note__: _If you are intending on running titanoboa server on java 8 JRE, downl
 
 Unzip the file:
     
-    unzip titanoboa-0.8.3_gui.zip
+    unzip titanoboa-0.9.0_gui.zip
 
 then execute the start script:
     
@@ -91,7 +95,7 @@ Congratulations! You have just started your titanoboa server!
 
 You can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
-## Installing server without GUI
+### Installing server without GUI
 Download the latest release from https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0.zip .
 
     curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0.zip
@@ -102,7 +106,7 @@ __Note__: _If you are intending on running titanoboa server on java 8 JRE, downl
     
 And then follow the instructions above. By default the server will start on port 3000.
      
-### Building from the repository
+## Building from the repository
 Titanoboa uses leiningen for dependency management, so if you don't have it download it from https://leiningen.org/ and follow its installation instructions.
 
 Clone this repository
@@ -143,7 +147,7 @@ Congratulations! You have just built & started your titanoboa server!
 
 If you included GUI you can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
-### Server Configuration
+## Server Configuration
 Server configuration and external dependencies file can be specified by system properties `boa.server.config.path` and `boa.server.dependencies.path`:
 
      java -Dboa.server.config.path=boa_server_config_local.clj -Dboa.server.dependencies.path=ext-dependencies.clj -cp "./build/titanoboa.jar:./lib/*" titanoboa.server
@@ -364,4 +368,4 @@ Copyright © Miroslav Kubicek
 Titanoboa is dual-licensed under either AGPL license or a Commercial license.
 
 **Clarification regarding AGPL licensing:**
-The AGPL license does not apply when Titanoboa server is used via its REST API. A program using Titanoboa via its standard REST API is not considered a derivative piece of work and thus does not have to have its source code released under AGPL linse.
+A program using Titanoboa via its standard REST API is not considered a derivative piece of work and thus does not have to have its source code released under AGPL linse.
