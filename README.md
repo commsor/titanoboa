@@ -362,3 +362,6 @@ To rapidly development and test new steps, you can also type a lambda function i
 Copyright © Miroslav Kubicek
 
 Titanoboa is dual-licensed under either AGPL license or a Commercial license.
+
+**Clarification regarding AGPL licensing:**
+The AGPL license does not apply when Titanoboa server is used via its REST API. A program using Titanoboa via its standard REST API is not considered a derivative piece of work and thus does not have to have its source code released under AGPL linse.
