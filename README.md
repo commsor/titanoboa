@@ -60,9 +60,14 @@ If you [created your own custom steps](https://github.com/mikub/titanoboa/wiki/D
 ## Prerequisites
 Java 8 or higher.
 
-## Docker Image
+## Docker
 [![Docker Pulls](https://img.shields.io/docker/pulls/titanoboa/titanoboa.svg)](https://hub.docker.com/r/titanoboa/titanoboa/)
+
 Docker image is available in [titanoboa/titanoboa](https://hub.docker.com/r/titanoboa/titanoboa)
+You can run it as follows:
+
+    docker run -d -p 3000:3000 --name titanoboa titanoboa/titanoboa
+
 ## Installation
 **By the way, you don't need to install anything as you can just start a free hosted instance in your browser with one click! Just head to https://cloud.titanoboa.io**
 
