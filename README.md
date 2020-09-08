@@ -162,6 +162,7 @@ To rapidly development and test new steps, you can also type a lambda function i
 [![]( https://github.com/mikub/titanoboa/blob/master/doc/java-lambda-workload.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/java-lambda-workload.png )
 
 
+
 ### <img width="42" height="42" src="https://github.com/mikub/titanoboa/blob/master/doc/clojure.svg"> Develop & Test Workflows Locally in Your Clojure REPL
 If you cannot use GUI and do not want to use REST API, you can as well just start REPL locally and play with titanoboa there.
 Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
