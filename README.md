@@ -112,45 +112,7 @@ __Note__: _If you are intending on running titanoboa server on java 8 JRE, downl
 And then follow the instructions above. By default the server will start on port 3000.
      
 ## Building from the repository
-Titanoboa uses leiningen for dependency management, so if you don't have it download it from https://leiningen.org/ and follow its installation instructions.
-
-Clone this repository
-
-    git clone https://github.com/mikub/titanoboa
-    
-run lein package:
-
-    lein package
-    
-in case that your target platform is Java 8 JRE use following profile:
-
-    lein with-profile java8jre package
-
-this will generate titanoboa jar file in the _build_ directory and will also download all libraries into _lib_ folder.
-
-If you want to use GUI you can clone the titanoboa-gui repository as well:
-
-    git clone https://github.com/mikub/titanoboa-gui
-    
-**Note**: _The GUI is now also free for commercial use. Yay!_
-
-then merge GUI's _public_ folder into the uberjar:
-
-    zip -r -g ./build/titanoboa.jar public
-
-then run the start script:
-    
-     ./start
-
-In your console you should see bunch of log messages and ultimately you will see
-     
-     INFO [main] - Started @3238ms
-
-which means the server started successfully. By default the server will start on port 3000.
-
-Congratulations! You have just built & started your titanoboa server!
-
-If you included GUI you can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
+The steps are described on our [wiki](https://github.com/mikub/titanoboa/wiki/Building-from-the-repository).
 
 ## Server Configuration
 Server configuration and external dependencies file can be specified by system properties `boa.server.config.path` and `boa.server.dependencies.path`:
