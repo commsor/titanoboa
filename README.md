@@ -2,6 +2,7 @@
 [![Join the chat at https://gitter.im/titanoboa_io/community](https://badges.gitter.im/titanoboa_io/community.svg)](https://gitter.im/titanoboa_io/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Demo](https://img.shields.io/badge/view-demo-green.svg)](https://www.titanoboa.io/demo.html)
 [![Free Hosted Instances](https://img.shields.io/badge/start-a%20free%20hosted%20instance%20with%20one%20click-orange.svg?logo=serverless)](https://cloud.titanoboa.io)
+[![Download](https://img.shields.io/badge/download-0.9.0-blue.svg)](https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_gui.zip)
 [![Docker Pulls](https://img.shields.io/docker/pulls/titanoboa/titanoboa.svg)](https://hub.docker.com/r/titanoboa/titanoboa/)
 
 ## Synopsis
