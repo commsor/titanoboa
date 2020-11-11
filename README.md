@@ -16,12 +16,13 @@ You can run it on-premises or in a cloud.
 
 Due to its generic, distributed and easily extensible design, you can use titanoboa for wide variety of purposes. <br/>
 You can use it:
-* as a **Service Bus** (ESB)
+* for **orchestrating workflows between Core Microservices** - **as a replacement of Composite Microservices**
 * as a full-featured [**iPaaS** / **Integration Platform**](https://titanoboa.io/using-titanoboa-for-cloud-integration.html)
 * for **[Big Data](https://www.titanoboa.io/big-data.html)** processing
 * for **[IT Automation](https://www.titanoboa.io/using-titanoboa-for-it-automation.html)**
-* for **Batch Processing**
 * for Data Transformations / **ETL**
+* as a **Service Bus** (ESB)
+* for **Batch Processing**
 
 See also [titanoboa.io](https://titanoboa.io) and our [wiki](https://github.com/mikub/titanoboa/wiki). Predefined workflow steps are [here](https://github.com/mikub/titanoboa-tasklets).
 
