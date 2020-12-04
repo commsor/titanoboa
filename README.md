@@ -172,14 +172,14 @@ Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 [![Clojars Project](https://img.shields.io/clojars/v/io.titanoboa/titanoboa.svg)](https://clojars.org/io.titanoboa/titanoboa)
 
 ```clojure
-[io.titanoboa/titanoboa "0.8.2"]
+[io.titanoboa/titanoboa "0.9.0"]
 ```
 
 ```xml
 <dependency>
   <groupId>io.titanoboa</groupId>
   <artifactId>titanoboa</artifactId>
-  <version>0.8.2</version>
+  <version>0.9.0</version>
 </dependency>
 ```
 then fire off a repl and start:
