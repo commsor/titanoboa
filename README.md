@@ -1,6 +1,9 @@
 [![Build Status](https://travis-ci.com/mikub/titanoboa.svg?branch=master)](https://travis-ci.com/mikub/titanoboa)
 [![Join the chat at https://gitter.im/titanoboa_io/community](https://badges.gitter.im/titanoboa_io/community.svg)](https://gitter.im/titanoboa_io/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Demo](https://img.shields.io/badge/view-demo-green.svg)](https://www.titanoboa.io/demo.html)
+[![Free Hosted Instances](https://img.shields.io/badge/start-a%20free%20hosted%20instance%20with%20one%20click-orange.svg?logo=serverless)](https://cloud.titanoboa.io)
+[![Download](https://img.shields.io/badge/download-0.9.0-blue.svg)](https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_gui.zip)
+[![Docker Pulls](https://img.shields.io/docker/pulls/titanoboa/titanoboa.svg)](https://hub.docker.com/r/titanoboa/titanoboa/)
 
 ## Synopsis
 Titanoboa makes complex integrations and workflows easy. 
@@ -13,12 +16,13 @@ You can run it on-premises or in a cloud.
 
 Due to its generic, distributed and easily extensible design, you can use titanoboa for wide variety of purposes. <br/>
 You can use it:
-* as a **Service Bus** (ESB)
+* for **orchestrating Core Microservices** - as a replacement of Composite Microservices
 * as a full-featured [**iPaaS** / **Integration Platform**](https://titanoboa.io/using-titanoboa-for-cloud-integration.html)
 * for **[Big Data](https://www.titanoboa.io/big-data.html)** processing
 * for **[IT Automation](https://www.titanoboa.io/using-titanoboa-for-it-automation.html)**
-* for **Batch Processing**
 * for Data Transformations / **ETL**
+* as a **Service Bus** (ESB)
+* for **Batch Processing**
 
 See also [titanoboa.io](https://titanoboa.io) and our [wiki](https://github.com/mikub/titanoboa/wiki). Predefined workflow steps are [here](https://github.com/mikub/titanoboa-tasklets).
 
@@ -42,9 +46,10 @@ Titanoboa's in-browser [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting
 Titanoboa is **designed for both java & clojure developers** and we are striving to make it **[usable even for java developers with no prior clojure knowledge](#-developing-custom-workflow-steps-in-java)**.
 
 ## Predefined Steps
-Though it is easy to rapidly develop new workflow steps directly from GUI, there is a number of ready-made steps and tasklets in [this repository](https://github.com/mikub/titanoboa-tasklets).
+Though it is easy to rapidly develop new workflow steps directly from GUI (as shown in our [demo](https://www.titanoboa.io/demo.html)), there is a number of ready-made steps and tasklets in [this repository](https://github.com/mikub/titanoboa-tasklets).
 Some of the steps included are: 
 - AWS (EC2, S3, SNS, SQS, SES)
+- JDBC Client
 - Http Client
 - Smtp Client
 - Sftp
@@ -52,11 +57,23 @@ Some of the steps included are:
 
 and more.
 
+If you [created your own custom steps](https://github.com/mikub/titanoboa/wiki/Designing-Workflows) (in [java](#-developing-custom-workflow-steps-in-java) or [clojure](https://github.com/mikub/titanoboa/wiki/Designing-Workflows)) and you wish to reuse them in other workflows it is super easy to add your own custom ready-made steps into the GUI - see our [wiki](https://github.com/mikub/titanoboa/wiki/Adding-Custom-Step-Types-and-Icons-to-GUI). You can even add custom icons!
+
 ## Prerequisites
 Java 8 or higher.
 
-## Installation 
-We suggest giving titanoboa's GUI a try as well since it is the best starting point!
+## Docker
+[![Docker Pulls](https://img.shields.io/docker/pulls/titanoboa/titanoboa.svg)](https://hub.docker.com/r/titanoboa/titanoboa/)
+
+Docker image is available in [titanoboa/titanoboa](https://hub.docker.com/r/titanoboa/titanoboa)
+You can run it as follows:
+
+    docker run -d -p 3000:3000 --name titanoboa titanoboa/titanoboa
+
+## Installation
+**By the way, you don't need to install anything as you can just start a free hosted instance in your browser with one click! Just head to https://cloud.titanoboa.io**
+
+But if you want, install away! We suggest giving titanoboa's GUI a try as well since it is the best starting point!
 Download titanoboa's distribution including its GUI from https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_gui.zip 
 
     curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_gui.zip
@@ -69,7 +86,7 @@ __Note__: _If you are intending on running titanoboa server on java 8 JRE, downl
 
 Unzip the file:
     
-    unzip titanoboa-0.8.3_gui.zip
+    unzip titanoboa-0.9.0_gui.zip
 
 then execute the start script:
     
@@ -83,9 +100,9 @@ which means the server started successfully. By default both the server and the 
 
 Congratulations! You have just started your titanoboa server!
 
-You can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
+You can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI) or [watch our demo](https://www.titanoboa.io/demo.html).
 
-## Installing server without GUI
+### Installing server without GUI
 Download the latest release from https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0.zip .
 
     curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0.zip
@@ -96,48 +113,10 @@ __Note__: _If you are intending on running titanoboa server on java 8 JRE, downl
     
 And then follow the instructions above. By default the server will start on port 3000.
      
-### Building from the repository
-Titanoboa uses leiningen for dependency management, so if you don't have it download it from https://leiningen.org/ and follow its installation instructions.
+## Building from the repository
+The steps are described on our [wiki](https://github.com/mikub/titanoboa/wiki/Building-from-the-repository).
 
-Clone this repository
-
-    git clone https://github.com/mikub/titanoboa
-    
-run lein package:
-
-    lein package
-    
-in case that your target platform is Java 8 JRE use following profile:
-
-    lein with-profile java8jre package
-
-this will generate titanoboa jar file in the _build_ directory and will also download all libraries into _lib_ folder.
-
-If you want to use GUI you can clone the titanoboa-gui repository as well:
-
-    git clone https://github.com/mikub/titanoboa-gui
-    
-**Note**: _The GUI is free for non-commercial use only_
-
-then merge GUI's _public_ folder into the uberjar:
-
-    zip -r -g ./build/titanoboa.jar public
-
-then run the start script:
-    
-     ./start
-
-In your console you should see bunch of log messages and ultimately you will see
-     
-     INFO [main] - Started @3238ms
-
-which means the server started successfully. By default the server will start on port 3000.
-
-Congratulations! You have just built & started your titanoboa server!
-
-If you included GUI you can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
-
-### Server Configuration
+## Server Configuration
 Server configuration and external dependencies file can be specified by system properties `boa.server.config.path` and `boa.server.dependencies.path`:
 
      java -Dboa.server.config.path=boa_server_config_local.clj -Dboa.server.dependencies.path=ext-dependencies.clj -cp "./build/titanoboa.jar:./lib/*" titanoboa.server
@@ -157,6 +136,35 @@ Titanoboa GUI is a good place to start devloping and testing workflows:
 
 See an example in our wiki on how to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI).
 
+ ### <img width="48" height="48" src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg"> Developing custom workflow steps in Java 
+ Titanoboa is also meant to be used by java developers who (apart from few concepts like [EDN](https://github.com/edn-format/edn)) do not need to be familiar with clojure. If you do not want to use clojure [java interop](https://clojure.org/reference/java_interop) to instantiate your objects and/or invoke your methods, you also have other options:
+ 
+ To create a custom workflow step, simply add a (maven) dependency on [![Clojars Project](https://img.shields.io/clojars/v/io.titanoboa/titanoboa-java.svg)](https://clojars.org/io.titanoboa/titanoboa-java) to your project.
+ and create a class that will implement [io.titanoboa.java.IWorkloadFn](https://github.com/mikub/titanoboa-java/blob/master/src/main/java/io/titanoboa/java/IWorkloadFn.java) interface:
+ ```java
+ public interface IWorkloadFn {
+    public Object invoke (Map properties);
+}
+ ```
+ If you then add your project (or the corresponding maven artifact) to titanoboa's [external dependencies](https://github.com/mikub/titanoboa/wiki/Server-Configuration#external-dependencies), you can use your class name in the workflow-fn field. The class will be automatically instantiated as a singleton bean (so it has to have a constructor with no argumet) and all subsequent references to it from any workflow-fn will invoke its __invoke__ method:
+ 
+ ```clojure
+ :workload-fn io.titanoboa.java.SampleWorkloadImpl
+ ```
+or
+
+ ```clojure
+ :workload-fn 'io.titanoboa.java.SampleWorkloadImpl
+ ```
+ or in GUI:
+[![]( https://github.com/mikub/titanoboa/blob/master/doc/java-workload.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/java-workload.png )
+
+### Java lambda support
+To rapidly development and test new steps, you can also type a lambda function in the GUI and have titanoboa evaluate it during runtime. Read more about it [here](https://www.titanoboa.io/java-repl.html) or see how it is done in our [demo](https://www.titanoboa.io/demo.html).
+[![]( https://github.com/mikub/titanoboa/blob/master/doc/java-lambda-workload.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/java-lambda-workload.png )
+
+
+
 ### <img width="42" height="42" src="https://github.com/mikub/titanoboa/blob/master/doc/clojure.svg"> Develop & Test Workflows Locally in Your Clojure REPL
 If you cannot use GUI and do not want to use REST API, you can as well just start REPL locally and play with titanoboa there.
 Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
@@ -164,14 +172,14 @@ Either build titanoboa from repo or get it as _leiningen_ or _maven_ dependency:
 [![Clojars Project](https://img.shields.io/clojars/v/io.titanoboa/titanoboa.svg)](https://clojars.org/io.titanoboa/titanoboa)
 
 ```clojure
-[io.titanoboa/titanoboa "0.8.2"]
+[io.titanoboa/titanoboa "0.9.0"]
 ```
 
 ```xml
 <dependency>
   <groupId>io.titanoboa</groupId>
   <artifactId>titanoboa</artifactId>
-  <version>0.8.2</version>
+  <version>0.9.0</version>
 </dependency>
 ```
 then fire off a repl and start:
@@ -325,34 +333,11 @@ When you are done testing you may want to stop the system:
  INFO [nREPL-worker-3] - Stopping action processor pool...
  INFO [nREPL-worker-3] - Stopping CacheEvictionComponent thread [ CacheEvictionComponent thread 0 ]...
  ```
- ### <img width="48" height="48" src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg"> Developing custom workflow steps in Java 
- Titanoboa is also meant to be used by java developers who (apart from few concepts like [EDN](https://github.com/edn-format/edn)) do not need to be familiar with clojure. If you do not want to use clojure [java interop](https://clojure.org/reference/java_interop) to instantiate your objects and/or invoke your methods, you also have other options:
- 
- To create a custom workflow step, simply add a (maven) dependency on [![Clojars Project](https://img.shields.io/clojars/v/io.titanoboa/titanoboa-java.svg)](https://clojars.org/io.titanoboa/titanoboa-java) to your project.
- and create a class that will implement [io.titanoboa.java.IWorkloadFn](https://github.com/mikub/titanoboa-java/blob/master/src/main/java/io/titanoboa/java/IWorkloadFn.java) interface:
- ```java
- public interface IWorkloadFn {
-    public Object invoke (Map properties);
-}
- ```
- If you then add your project (or the corresponding maven artifact) to titanoboa's [external dependencies](https://github.com/mikub/titanoboa/wiki/Server-Configuration#external-dependencies), you can use your class name in the workflow-fn field. The class will be automatically instantiated as a singleton bean (so it has to have a constructor with no argumet) and all subsequent references to it from any workflow-fn will invoke its __invoke__ method:
- 
- ```clojure
- :workload-fn io.titanoboa.java.SampleWorkloadImpl
- ```
-or
-
- ```clojure
- :workload-fn 'io.titanoboa.java.SampleWorkloadImpl
- ```
- or in GUI:
-[![]( https://github.com/mikub/titanoboa/blob/master/doc/java-workload.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/java-workload.png )
-
-### Java lambda support
-To rapidly development and test new steps, you can also type a lambda function in the GUI and have titanoboa evaluate it during runtime. Read more about it [here](https://www.titanoboa.io/java-repl.html).
-[![]( https://github.com/mikub/titanoboa/blob/master/doc/java-lambda-workload.png )](https://raw.githubusercontent.com/mikub/titanoboa/master/doc/java-lambda-workload.png )
 
 ## License
 Copyright © Miroslav Kubicek
 
 Titanoboa is dual-licensed under either AGPL license or a Commercial license.
+
+**Clarification regarding AGPL licensing:**
+A program using Titanoboa via its standard REST API is not considered a derivative piece of work and thus does not have to have its source code released under AGPL linse.
