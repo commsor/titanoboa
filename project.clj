@@ -1,4 +1,4 @@
-(defproject io.titanoboa/titanoboa "0.9.0"
+(defproject io.titanoboa/titanoboa "0.9.1-SNAPSHOT"
   :description "titanoboa.io is fully distributed, highly scalable and fault tolerant workflow orchestration platform"
   :url "http://titanoboa.io"
   :license {:name "GNU Affero General Public License"
@@ -36,7 +36,7 @@
                  [org.clojure/tools.reader "1.3.2"]
                  [clj-time "0.14.0"]
                  [org.clojure/java.jdbc "0.7.1"]
-                 [com.mchange/c3p0 "0.9.5.2"]
+                 [io.titanoboa/c3p0 "0.9.6-pre1"]
                  [honeysql "0.9.1"]
                  ;;uncomment following for RDBMS archival use - or just add it into the external dependencies file ;)
                  #_[org.postgresql/postgresql "9.4.1208"]
@@ -56,6 +56,7 @@
                                        [com.cemerick/pomegranate "1.0.0" :exclusions [org.tcrawley/dynapath]]]}}
 
   :repositories [["atlassian" 	"https://maven.atlassian.com/3rdparty/"]]
+
   :test-selectors {:default (fn [m] (not (or (:integration m) (:rmq m))))
                    :integration :integration
                    :rmq :rmq}
