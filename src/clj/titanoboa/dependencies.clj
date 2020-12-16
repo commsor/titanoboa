@@ -42,6 +42,25 @@
           (spit deps-file (slurp (str empty-deps)))
           (System/setProperty dependencies-path-property (.getAbsolutePath deps-file))))))
 
+(defn init-s3mvn-support [coordinates]
+  "Initializes s3-wagon-private and registers it as a wagon factory in aether.
+  Takes maven coordinates for s3-wagon-private in usual format,
+  e.g. '[[s3-wagon-private \"1.3.4\" :exclusions [ch.qos.logback/logback-classic]]]"
+  (log/info "Initializing s3-wagon: \n" coordinates " \n")
+  (pom/add-dependencies :coordinates coordinates
+                        :repositories {"central" "https://repo1.maven.org/maven2/"
+                                       "clojars" "https://clojars.org/repo"}
+                        :classloader (last (filter pom/modifiable-classloader?
+                                                   (pom/classloader-hierarchy))))
+  (.importClass *ns* (resolve (symbol "org.springframework.build.aws.maven.PrivateS3Wagon")))
+  (aether/register-wagon-factory! "s3p" #(eval '(org.springframework.build.aws.maven.PrivateS3Wagon.))))
+
+(defn add-s3-wagon [coordinates]
+  (some->> coordinates
+           (filterv #(= (first %) 's3-wagon-private))
+           not-empty
+           init-s3mvn-support))
+
 (defn get-deps-path-property []
   (System/getProperty dependencies-path-property))
 
@@ -73,7 +92,8 @@
   ext-coordinates is supposed to be in a format of {:coordinates [[com.draines/postal \"2.0.2\"]] :require [[postal.core]] :import nil :repositories nil}"
   (when-let [c (:coordinates ext-coordinates)]
     (when-not (effectively-empty? c)
-      (log/info "Loading external dependencies: \n" c " \n from repositories " (:repositories ext-coordinates))
+      (log/info "Loading external dependencies: \n" c " \n from specified repositories.")
+      (add-s3-wagon c)
       (pom/add-dependencies :coordinates c
                           :repositories (:repositories ext-coordinates)
                           :classloader (last (filter pom/modifiable-classloader?
