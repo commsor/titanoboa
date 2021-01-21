@@ -9,11 +9,11 @@
             alt="follow on Twitter"></a>
 
 ## Synopsis
-Titanoboa makes complex integrations and workflows easy. 
+Titanoboa makes complex workflows easy. 
 
 It is a fully distributed, highly scalable and fault tolerant workflow orchestration platform.
-It employs hybrid iPaaS concepts and runs on the JVM.
-You can run it on-premises or in a cloud.
+It runs on the JVM and supports Java and Clojure. (Python is also coming!)
+You can run it anywhere: on-premises or in a cloud; on bare metal, VMs, Docker or K8s. 
 
 ![alt Logo](https://www.titanoboa.io/tb-logo-dark-nosub.svg)
 
@@ -129,6 +129,8 @@ See [Server configuration wiki](https://github.com/mikub/titanoboa/wiki/Server-C
 
 ## Getting Started
 Before you start, it might be a good idea to get familiar with titanoboa's [concepts](https://github.com/mikub/titanoboa/wiki) & [workflow design principles](https://github.com/mikub/titanoboa/wiki/Designing-Workflows).
+
+Also feel free to watch Miro's [talk from re:Clojure 2020 conference](https://www.youtube.com/watch?v=IRrh4VUHhNY) which gives pretty good overview about what can Titanoboa do.
 
 ### Develop & Test Workflows with titanoboa GUI
 Titanoboa GUI is a good place to start devloping and testing workflows:
