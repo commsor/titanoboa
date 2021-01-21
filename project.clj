@@ -1,6 +1,6 @@
 (defproject io.titanoboa/titanoboa "0.9.1-SNAPSHOT"
   :description "titanoboa.io is fully distributed, highly scalable and fault tolerant workflow orchestration platform"
-  :url "http://titanoboa.io"
+  :url "https://titanoboa.io"
   :license {:name "GNU Affero General Public License"
             :url "https://www.gnu.org/licenses/agpl-3.0.en.html"}
   :dependencies [[org.clojure/clojure "1.10.0"]
@@ -17,11 +17,11 @@
                  [org.clojure/java.classpath "0.3.0"]
                  [org.tcrawley/dynapath "1.0.0"]
                  [org.xeustechnologies/jcl-core "2.8"  :exclusions [org.slf4j/slf4j-api]]
-                 [com.cemerick/pomegranate "1.1.0" :exclusions [org.tcrawley/dynapath]]
+                 [com.cemerick/pomegranate "1.1.0" :exclusions [org.tcrawley/dynapath org.apache.httpcomponents/httpclient]]
                  [com.taoensso/nippy "2.14.0"]
                  [me.raynes/fs "1.4.6"]
                  [clojure-watch "0.1.14"]
-                 [io.methvin/directory-watcher "0.8.0"]
+                 [io.methvin/directory-watcher "0.8.0"] ;;:exclusions [net.java.dev.jna/jna]
                  [ring-server "0.4.0"]
                  [ring "1.6.3"]
                  [ring/ring-defaults "0.1.5"]
@@ -29,10 +29,10 @@
                  [circleci/clj-yaml "0.5.6" :exclusions [org.flatland/ordered]]
                  [org.flatland/ordered "1.5.7"]
                  [com.cognitect/transit-clj "0.8.319"]
-                 [com.taoensso/timbre "4.7.0"]
+                 [com.taoensso/timbre "4.10.0"]
                  [compojure "1.5.2"]
                  [buddy "2.0.0"]
-                 [clj-http "3.9.1"]
+                 [clj-http "3.11.0"]
                  [org.clojure/tools.reader "1.3.2"]
                  [clj-time "0.14.0"]
                  [org.clojure/java.jdbc "0.7.1"]

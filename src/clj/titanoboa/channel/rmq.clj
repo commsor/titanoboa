@@ -7,79 +7,66 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns titanoboa.channel.rmq
-  (:require  [com.stuartsierra.component :as component]
-             [clojure.core.async :as async :refer [>!! <!!]]
-             [clojure.core.async.impl.protocols :refer [ReadPort WritePort]]
-             [titanoboa.channel :as ch :refer [with-mq-session with-mq-sessionpool current-session TransChannelProtocol Cleanable]]
-             [langohr.basic]
-             [langohr.core :as langohr]
-             [langohr.channel]
-             [langohr.queue]
-             [langohr.consumers]
-             [langohr.exchange]
-             [langohr.http]
-             [taoensso.nippy :as nippy]
-             [clojure.tools.logging :as log]))
+  (:require [com.stuartsierra.component :as component]
+            [clojure.core.async :as async :refer [>!! <!!]]
+            [clojure.core.async.impl.protocols :refer [ReadPort WritePort]]
+            [titanoboa.channel :as ch :refer [with-mq-session with-mq-sessionpool TransChannelProtocol Cleanable]]
+            [langohr.basic]
+            [langohr.core :as langohr]
+            [langohr.shutdown]
+            [langohr.channel]
+            [langohr.queue]
+            [langohr.consumers]
+            [langohr.exchange]
+            [langohr.http]
+            [taoensso.nippy :as nippy]
+            [clojure.tools.logging :as log]))
 
+(defn current-session[]
+  (deref (:session-atom (ch/current-session))))
 
-(nippy/extend-freeze clojure.lang.Var :clojure.core/var
-                     [x data-output]
-                     (.writeUTF data-output (str x)))
+(defrecord RMQConnectionComponent [params connection]
+  component/Lifecycle
+  (start [this]
+    (log/info "Instantiating RabbitMQ Connection...")
+    (if connection
+      this
+      (assoc this
+        :connection (langohr/connect params))))
+  (stop [this]
+    (log/info "Closing RabbitMQ Connection...")
+    (try (langohr.core/close connection)
+         (catch com.rabbitmq.client.AlreadyClosedException e
+           (log/info "RabbitMQ Session was already closed.")))
+    (assoc this
+      :connection nil)))
 
-(nippy/extend-thaw :clojure.core/var
-                   [data-input]
-                   (ch/->SerializedVar (.readUTF data-input)))
+(defrecord RMQSessionComponent [connection-comp session session-atom]
+  component/Lifecycle
+  (start [this]
+    (log/info "Instantiating Recoverable RabbitMQ Session...")
+    (if (and session session-atom)
+      this
+      (assoc this
+        :session-atom (atom (langohr.channel/open (:connection connection-comp)))
+        :session this)))
+  (stop [this]
+    (log/info "Closing RabbitMQ Session...")
+    (try (langohr.core/close @session-atom)
+         (catch com.rabbitmq.client.AlreadyClosedException e
+           (log/info "RabbitMQ Session was already closed.")))
+    (assoc this
+      :session nil
+      :session-atom nil)))
 
-(nippy/extend-freeze clojure.core.async.impl.channels.ManyToManyChannel :core-async-chan
-                     [x data-output]
-                     nil)
-
-(nippy/extend-thaw :core-async-chan
-                   [data-input]
-                   :core-async-chan)
-;;FIXME cast this into normal Exception upstream
-(nippy/extend-freeze pl.joegreen.lambdaFromString.LambdaCreationException :lambda-creation-exception
-                     [x data-output]
-                     (.writeUTF data-output (.getMessage x)))
-
-(nippy/extend-thaw :lambda-creation-exception
-                   [data-input]
-                   (java.lang.Exception. (.readUTF data-input)))
-
-
-(nippy/set-freeze-fallback!
-  (fn [data-output x]
-    (let [s (str x)
-          ba (.getBytes s "UTF-8")
-          len (alength ba)]
-      (.writeByte data-output (byte 13))
-      (.writeInt data-output (int len))
-      (.write data-output ba 0 len))))
-
-;;interesting bug:
-;;throw+  applied to returned clj-http.headers/->HeaderMap cannot be serialized
-#_(-> (try (slingshot.slingshot/throw+ (get resp :headers) "status %s" (:status %))
-           (catch Exception e
-             e))
-      nippy/freeze)
-
-#_(def wfn (.createLambda (LambdaFactory/get)
-                          "p -> {Integer b = (Integer) p.valAt(\"a\");
-                          b++;
-                          return p.assoc(\"b\", b);}"
-                          "Function< clojure.lang.PersistentArrayMap,  clojure.lang.IPersistentMap>"))
-;;=> #'titanoboa.server/wfn
-;;(.apply wfn {"a" (int 0)})
-;;=> {"a" 0, "b" 1}
-
-(defn create-rmq-pool [connection n]
+(defn create-rmq-pool [connection-comp n]
   "Instantiates a RabbitMQ session pool of size n.
   Returns core.async channel of size n that contains n maps in a format of {:connection RMQ-Connection-object :session RMQ-Session-object}.
   If a connection is provided, all these session are using this connection.
   TODO: If URI is provided instead of a connection, each session will has its unique connection."
   (let [pool (async/chan n)]
     (doseq [_ (range n)]
-      (async/>!! pool {:connection connection :session (langohr.channel/open connection)}))
+      (async/>!! pool {:connection connection-comp :session (.start (map->RMQSessionComponent {:connection-comp connection-comp}))}))
     pool))
 
 (defn close-mq-pool! [pool]
@@ -89,9 +76,23 @@
   (loop []
     (let [c-map (async/poll! pool)]
       (if c-map
-        (do (langohr.core/close (:session c-map))
+        (do (.stop (:session c-map))
             (recur))
         (async/close! pool)))))
+
+(defrecord RMQSessionPoolComponent [connection-comp pool-size pool]
+  component/Lifecycle
+  (start [this]
+    (log/info "Instantiating RabbitMQ Session Pool...")
+    (if pool
+      this
+      (assoc this
+        :pool (create-rmq-pool connection-comp pool-size))))
+  (stop [this]
+    (log/info "Closing RabbitMQ Session Pool...")
+    (close-mq-pool! pool)
+    (assoc this
+      :pool nil)))
 
 (defn rmq-poll!
   "Returns a message from specified RabbitMQ queue. If the queue is empty then returns nil.
@@ -125,7 +126,7 @@
 (defrecord RMQPollingChannel [queue auto-ack poll-interval exchange]
   WritePort
   (put! [_ val _]
-    (atom (langohr.basic/publish (current-session)  (or exchange "") queue (nippy/freeze val) {:content-type "application/octet-stream" :type "titanoboa"})))
+    (atom (langohr.basic/publish (current-session) (or exchange "") queue (nippy/freeze val) {:content-type "application/octet-stream" :type "titanoboa"})))
   ReadPort
   (take! [this handler]
     (atom (rmq-blocking-poll! (assoc this :session (current-session)))))
@@ -150,7 +151,7 @@
   ([queue] (rmq-chan queue true 100))
   ([] (rmq-chan nil true 100)))
 
-(defmethod ch/mq-chan com.rabbitmq.client.impl.recovery.AutorecoveringChannel
+(defmethod ch/mq-chan RMQSessionComponent ;;com.rabbitmq.client.impl.recovery.AutorecoveringChannel
   [queue auto-ack]
   (rmq-chan queue auto-ack))
 
@@ -158,13 +159,38 @@
   [chan]
   (langohr.queue/delete (current-session) (:queue chan)))
 
-(defrecord RMQExchangeBroadcast [exchange expiration headers]
+;;properties can contain {:keys [expiration headers] :as properties}
+(defrecord RMQExchange [exchange type routing-key routing-key-prefix session-comp sessionpool-comp properties]
+  component/Lifecycle
+  (start [this]
+    (log/info "Creating exchange [" exchange "]... ")
+    (cond
+      session-comp
+      (with-mq-session session-comp
+                       (langohr.exchange/declare (current-session) exchange type {:durable true}))
+      sessionpool-comp
+      (with-mq-sessionpool (:pool sessionpool-comp)
+                           (langohr.exchange/declare (current-session) exchange type {:durable true}))
+      :else (langohr.exchange/declare (current-session) exchange type {:durable true}))
+    this)
+  (stop [this]
+    this)
   WritePort
   (put! [_ val _]
-    (atom (langohr.basic/publish (current-session)  exchange "" (nippy/freeze val) {:content-type "application/octet-stream" :type "titanoboa" :expiration expiration :headers headers})))
+    (atom (langohr.basic/publish (current-session) exchange (if (and routing-key (map? val)) (str (or routing-key-prefix "") (get val routing-key)) "") (nippy/freeze val) (merge properties {:content-type "application/octet-stream" :type "titanoboa"}))))
   ReadPort
   (take! [this handler]
-    (throw (UnsupportedOperationException. "Cannot consume messages directly from RMQ Fan Exchange! Use RMQExchangeSubscriber instead."))))
+    (throw (UnsupportedOperationException. "Cannot consume messages directly from RMQ Exchange! Use RMQExchangeSubscriber instead."))))
+
+(defmethod ch/bind-chan RMQPollingChannel
+  [^RMQExchange exchange chan routing-key]
+  (langohr.queue/bind (current-session) (:queue chan) (:exchange exchange) {:routing-key (str (or (:routing-key-prefix exchange) "") routing-key)})
+  chan)
+
+(defmethod ch/unbind-chan RMQPollingChannel
+  [exchange chan routing-key]
+  (langohr.queue/unbind (current-session) (:queue chan) (:exchange exchange) (str (or (:routing-key-prefix exchange) "") routing-key)))
+
 
 (defmethod ch/->distributed-ch com.rabbitmq.client.impl.recovery.AutorecoveringChannel
   [chan]
@@ -198,10 +224,6 @@
   true)
 
 (defmethod ch/poll! titanoboa.channel.rmq.RMQPollingChannel
-  [ch]
-  (rmq-poll! ch))
-
-#_(defmethod ch/poll! clojure.lang.PersistentArrayMap ;;FIXME this is NOT cool! remove this!
   [ch]
   (rmq-poll! ch))
 
@@ -254,58 +276,13 @@
                           (println "thread 2 - Finished 2nd"))))))
 
 
-(defrecord RMQConnectionComponent [params connection]
-  component/Lifecycle
-  (start [this]
-    (log/info "Instantiating RabbitMQ Connection...")
-    (if connection
-      this
-      (assoc this
-        :connection (langohr/connect params))))
-  (stop [this]
-    (log/info "Closing RabbitMQ Connection...")
-    (try (langohr.core/close connection)
-         (catch com.rabbitmq.client.AlreadyClosedException e
-           (log/info "RabbitMQ Session was already closed.")))
-    (assoc this
-      :connection nil)))
-
-(defrecord RMQSessionComponent [connection-comp session]
-  component/Lifecycle
-  (start [this]
-    (log/info "Instantiating RabbitMQ Session...")
-    (if session
-      this
-      (assoc this
-        :session (langohr.channel/open (:connection connection-comp)))))
-  (stop [this]
-    (log/info "Closing RabbitMQ Session...")
-    (try (langohr.core/close session)
-         (catch com.rabbitmq.client.AlreadyClosedException e
-           (log/info "RabbitMQ Session was already closed.")))
-    (assoc this
-      :session nil)))
-
-(defrecord RMQSessionPoolComponent [connection-comp pool-size pool]
-  component/Lifecycle
-  (start [this]
-    (log/info "Instantiating RabbitMQ Session Pool...")
-    (if pool
-      this
-      (assoc this
-        :pool (create-rmq-pool (:connection connection-comp) pool-size))))
-  (stop [this]
-    (log/info "Closing RabbitMQ Session Pool...")
-    (close-mq-pool! pool)
-    (assoc this
-      :pool nil)))
 
 (defrecord QueueComponent [session-comp sessionpool-comp queue-name]
   component/Lifecycle
   (start [this]
     (log/info "Creating queue [" queue-name "]...")
     (if session-comp
-      (with-mq-session (:session session-comp)
+      (with-mq-session session-comp
                        (langohr.queue/declare (current-session) queue-name {:exclusive false :auto-delete false :durable true}))
       (when sessionpool-comp
         (with-mq-sessionpool (:pool sessionpool-comp)

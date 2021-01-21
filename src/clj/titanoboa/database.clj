@@ -68,6 +68,9 @@
                            :stepstate (name (:step-state job))
                            :stepid    (get-in job [:step :id])
                            :steptype  (name (get-in job [:step :type]))
+                           :isparent  (:isparent? job)
+                           :parentjobid (when (:parent-jobid job) (java.util.UUID/fromString (:parent-jobid job)))
+                           :threadstack (prn-str (:thread-stack job))
                            :job       (nippy/freeze job)}))
 
 (defmulti list-jobs
@@ -86,6 +89,25 @@
            :job
            (nippy/thaw)))
 
+(defn get-jobs
+  "retrieve a job including all the job's threads if they exist (usually only in case the job is suspended mid-run)"
+  [ds jobid]
+  (some->> {:select [:job]
+            :from [:jobs]
+            :where [:or [:= :jobid (java.util.UUID/fromString jobid)] [:= :parentjobid (java.util.UUID/fromString jobid)]]}
+           (sql/format)
+           (jdbc/query ds)
+           (mapv :job)
+           (mapv nippy/thaw)))
+
+(defn delete-jobs [ds jobid]
+  (jdbc/with-db-transaction [con ds]
+                            (some->> {:delete-from :jobs
+                                      :where [:or [:= :jobid (java.util.UUID/fromString jobid)] [:= :parentjobid (java.util.UUID/fromString jobid)]]}
+                                     (sql/format)
+                                     (jdbc/execute! con))))
+
+
 (defrecord JobArchivingComponent [ds mq-session-comp finished-jobs-chan thread-handle]
   component/Lifecycle
   (start [this]
@@ -95,7 +117,7 @@
       (let [th (Thread. (fn[]
                           (log/info "Starting JobArchivingComponent thread [" (.getName (Thread/currentThread)) "].")
                           (log/debug "Retrieving finished job for archival...")
-                          (ch/with-mq-session (:session mq-session-comp)
+                          (ch/with-mq-session mq-session-comp
                                               (loop [job (async/<!! finished-jobs-chan)]
                                                 (log/info "Archiving finished job ["(:jobid job)"]...")
                                                 (try (archive-job! ds job)

@@ -100,7 +100,7 @@
           (doseq [x (range n)]
             (do
              (log/info "Starting a worker for system" ns-sys-key "...")
-             (swap! systems-state update-in [ns-sys-key :workers] conj (component/start (worker-def system))))))
+             (swap! systems-state update-in [ns-sys-key :workers] conj (component/start (worker-def (assoc system :worker-id x :sys-key sys-key)))))))
         (throw (IllegalStateException. "Workers cannot be started as the System is not running!"))))))
 
 ;;TODO add error handling? Or leave the state handling to systems?

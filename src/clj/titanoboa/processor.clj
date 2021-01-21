@@ -26,7 +26,12 @@
 (def ^:dynamic *cmd-exchange-ch* nil)
 (def ^:dynamic *server-config* nil)
 
-(defn instantiate-job! [{:keys [tracking-id id jobdef jobdef-name revision properties files new-jobs-ch state-agent job-folder defs-atom mq-pool callback-ch] :as config}]
+(defn preprocess [job]
+  (log/info "Entering preprocessing method...")
+  (print "preprocessing...."))
+
+;;TODO move this to a separate namespace "commands" or similar?
+(defn instantiate-job! [{:keys [tracking-id id jobdef jobdef-name revision properties files new-jobs-ch state-agent job-folder defs-atom mq-pool callback-ch jobs-cmd-exchange] :as config}]
   (let [id (or id (str (java.util.UUID/randomUUID)))
         jobdir (java.io.File. job-folder id)
         _ (assert (or jobdef (and defs-atom jobdef-name)))
@@ -35,6 +40,7 @@
         jobdef-name (or (:name jobdef) jobdef-name)
         create-folder? (not (false? (get-in jobdef [:properties :create-folder?])))
         properties (if create-folder? (merge properties {:jobdir jobdir "jobdir" jobdir}) properties)
+        suspendable? (if (boolean? (:suspendable? properties )) (:suspendable? properties ) (or (:suspendable? jobdef) (get-in jobdef [:properties :suspendable?])))
         init-job {:jobid id
                   :tracking-id tracking-id
                   :step-retries {}
@@ -42,16 +48,16 @@
                   :create-folder? create-folder?
                   :jobdir jobdir
                   :state :initial
+                  :suspendable? suspendable?
                   :step nil
                   :next-step nil
                   :start (java.util.Date.)
                   :history []
-                  :commands-ch nil
                   :callback-ch callback-ch}
         job (->> ;;TODO rewrite this to use cond->> to call these functions only if not null
               (exp/eval-ordered (:properties jobdef) init-job);;eval initial properties
               (exp/eval-ordered properties));;override properties if there are any
-        create-folder? (:create-folder? job) ]
+        ]
 
     (assert jobdef (str "Job definition [" jobdef-name "] does not exist!"))
     ;;create job working directory - in the dosync - use an agent? - nope this should be safe to retry
@@ -68,13 +74,12 @@
         (store-file jobdir (name k) v)))
     ;;update ref with running jobs map
     (send state-agent assoc id job)
-    ;;TODO insert into the state machine pipeline - do it in the transaction? (agent would be required)
     (log/info "Submitting new job [" job "] into new jobs channel...")
-    ;;TODO also if the job is created to be in "suspended" state it will never be put into new-jobs-ch, but into some "paused jobs" map (or maybe keeping it in the running-jobs ref is sufficient?)
-    (if (and (channel/distributed? new-jobs-ch) mq-pool)
-      (channel/with-mq-sessionpool mq-pool
-                                   (>!! new-jobs-ch job))
-      (>!! new-jobs-ch job))
+    (channel/with-mq-sessionpool mq-pool
+                                 (if (and suspendable? jobs-cmd-exchange)
+                                   (let [new-subs-chan (channel/bind-chan jobs-cmd-exchange (channel/mq-chan nil true) id)]
+                                     (>!! new-jobs-ch (assoc job :commands-ch new-subs-chan)))
+                                   (>!! new-jobs-ch job)))
     (if tracking-id
       [tracking-id id]
       id)))
@@ -86,11 +91,9 @@
   If the system is distributed (i.e. service bus used is e.g. RabbitMQ as opposed to core.async channels)
   than a temporary MQ queue is created for the callback - via the channel/->distributed-ch function."
   (let [callback-ch (async/chan 1)]
-    (if (and (channel/distributed? new-jobs-ch) mq-pool)
-      (channel/with-mq-sessionpool mq-pool
-          (instantiate-job! (assoc config :sync true
-                              :callback-ch (channel/->distributed-ch callback-ch))))
-      (instantiate-job! (assoc config :sync true :callback-ch callback-ch)))
+    (channel/with-mq-sessionpool mq-pool
+                                 (instantiate-job! (assoc config :sync true
+                                                                 :callback-ch (channel/->distributed-ch callback-ch))))
     (<!! callback-ch)))
 
 ;;TODO move this to a separate namespace (maybe to system?)?
@@ -103,14 +106,15 @@
   If the response channel is not provided, the function waits synchronously for the job to be instantiated and then returns the job id."
   ([system-key {:keys [jobdef jobdef-name revision properties files] :as conf} response-ch keep-open]
   (assert (system/is-running? system-key) "Cannot start a job in a system that is not running!")
-  (let [{:keys [action-chan new-jobs-chan job-state job-folder-root job-defs mq-session-pool] :as system} (get-in @system/systems-state [system-key :system]) ;;FIXME fix this need to go backdoor to grab systems config - it should flow down from the top!!! This is likely caused by my use of actions and action pool - functions from processor make calls to fns in the same namespace via actions, this seems weird!!
+  (let [{:keys [action-chan new-jobs-chan job-state job-folder-root job-defs mq-session-pool jobs-cmd-exchange] :as system} (get-in @system/systems-state [system-key :system]) ;;FIXME fix this need to go backdoor to grab systems config - it should flow down from the top!!! This is likely caused by my use of actions and action pool - functions from processor make calls to fns in the same namespace via actions, this seems weird!!
         action-request {:action-fn titanoboa.processor/instantiate-job!
                         :data [(merge conf
                                       {:new-jobs-ch new-jobs-chan
                                        :state-agent job-state
                                        :job-folder job-folder-root
                                        :defs-atom job-defs
-                                       :mq-pool (:pool mq-session-pool)})]
+                                       :mq-pool (:pool mq-session-pool)
+                                       :jobs-cmd-exchange jobs-cmd-exchange})]
                         :response-ch response-ch
                         :keep-open keep-open}]
     (when-not (>!! action-chan action-request)
@@ -125,26 +129,156 @@
   Returns the job id or the finished job if the sync flag is set to true."
   [system-key {:keys [jobdef jobdef-name revision properties files] :as conf} sync]
   (assert (system/is-running? system-key) "Cannot start a job in a system that is not running!")
-  (let [{:keys [new-jobs-chan job-state job-folder-root job-defs mq-session-pool] :as system} (get-in @system/systems-state [system-key :system])
+  (let [{:keys [new-jobs-chan job-state job-folder-root job-defs mq-session-pool jobs-cmd-exchange] :as system} (get-in @system/systems-state [system-key :system])
         job-conf (merge conf {:new-jobs-ch new-jobs-chan
                               :state-agent job-state
                               :job-folder job-folder-root
                               :defs-atom job-defs
+                              :jobs-cmd-exchange jobs-cmd-exchange
                               :mq-pool (:pool mq-session-pool)})] ;;FIXME fix this need to go backdoor to grab systems config - it should flow down from the top!!! This is likely caused by my use of actions and action pool - functions from processor make calls to fns in the same namespace via actions, this seems weird!!
     (if sync
       (run-sync-job! job-conf)
       {:jobid (instantiate-job! job-conf)})))
 
-(defn init-first-step [{{:keys [steps] :as jobdef} :jobdef :keys [state next-step jobdir properties step-start] :as job}]
+
+(defn add-thread-callbacks [parallel-threads thread-registry]
+  (clojure.walk/postwalk #(if (and (map? %) (contains? % :thread-id))
+                            (do
+                              (swap! thread-registry update-in [(:step-id %) (:thread-id %)] (fn [ch] (if-not ch (channel/mq-chan nil false) ch)))
+                              (assoc % :callback-chan (get-in @thread-registry [(:step-id %) (:thread-id %)])))
+                            %)
+                         parallel-threads))
+
+(defn revive-awaiting-job! [{:keys [thread-stack jobid] :as job} thread-registry]
+  (let [[step-id thread-id] (last thread-stack)
+        callback-chan (get-in thread-registry [step-id thread-id])]
+    (log/info "Resuming suspended job " jobid " - that was awaiting join - to callback channel " callback-chan)
+    (when callback-chan (>!! callback-chan (assoc job :state :awaiting-join)))))
+
+(defn revive-thread-callbacks! [jobs]
+  (let [thread-registry (atom {})
+        suspended-jobs (filterv #(= (:state %) :suspended) jobs)
+        jobs-awaiting-join (filterv #(= (:state %) :suspended-awaiting-join) jobs)
+        suspended-jobs (mapv
+                         #(update-in % [:parallel-threads] add-thread-callbacks thread-registry)
+                         suspended-jobs)]
+    (mapv #(revive-awaiting-job! % @thread-registry) jobs-awaiting-join)
+    suspended-jobs))
+
+(defn dissoc-thread-callbacks [parallel-threads]
+  (clojure.walk/postwalk #(if (and (map? %) (contains? % :callback-chan))
+                            (dissoc % :callback-chan)
+                            %)
+                         parallel-threads))
+
+(defn remove-thread-callbacks [{parallel-threads :parallel-threads :as job}]
+  (if parallel-threads
+    (update-in job [:parallel-threads] dissoc-thread-callbacks)
+    job))
+
+
+(defn main-for-step? [thread-stack step]
+  (some (fn [[step-id thread-id]] (and (= step step-id) (= thread-id :main))) thread-stack))
+
+#_{:parallel-threads [[:step-id {:main {:step-id dispatch-step
+                                        :thread-id :main
+                                        :jobid "UUID"
+                                        :next-step next-step
+                                        :callback-chan nil}
+                                 :thread-1 {:step-id dispatch-step
+                                            :thread-id :thread-1
+                                            :jobid "UUID"
+                                            :next-step next-step
+                                            :callback-chan callback-chan}}]]
+   :thread-stack [[step-id thread-id][step-id thread-id][step-id thread-id]]}
+(defn retire-thread-callback [{:keys [step-id thread-id jobid callback-chan] :as thread-map}]
+  "During job suspension, it is not desirable to keep existing join callback channels open for 2 reasons -
+a) core.async channels cannot be serialized into a database
+b) Other MQ channels can be serialized, but since the job might not be ever resumed these could pile up and polute the message broker. So instead they should be recreated only in case the job is resumed.
+Therefore this function removes callback-chan for relevant job threads. To avoid conflicting deletes, only :main thread for each step performs the deletion.
+Before the deletion the queue is checked for potential job thread (in a state :awaiting-join)."
+  (when callback-chan
+    (if-let [m (channel/poll! callback-chan)]
+      [m (fn [] (channel/ack! callback-chan m)(channel/delete-mq-chan callback-chan))]
+      [nil (fn [] (channel/delete-mq-chan callback-chan))])))
+
+(defn retire-thread-callbacks [thread-maps]
+  (mapv retire-thread-callback thread-maps))
+
+(defn suspend-join-operations [{:keys [parallel-threads thread-stack] :as job}]
+  "To avoid multiple potentialy conflicting callback-chan deletes (i.e. calls to retire-thread-callback), only :main thread for each step performs the deletion.
+  Algorithm for this is simple: just retrace from the end of thread-stack and perform deletes only until all encountered thread-ids are :main."
+  (loop [thread-stack' thread-stack
+         job-ackfn-tuples []]
+    (if (and (not-empty thread-stack') (= (second (peek thread-stack')) :main))
+      (let [step-id (first (peek thread-stack'))]
+        (recur (pop thread-stack') (into job-ackfn-tuples (retire-thread-callbacks (-> parallel-threads
+                                                                                       peek
+                                                                                       second
+                                                                                       vals)))))
+      job-ackfn-tuples)))
+
+#_(defn retire-thread-callbacks-old [parallel-threads thread-stack]
+  "During job suspension, it is not desirable to keep existing join callback channels open for 2 reasons -
+  a) core.async channels cannot be serialized into a database
+  b) Other MQ channels can be serialized, but since the job might not be ever resumed these could pile up and polute the message broker. So instead they should be recreated only in case the job is resumed.
+  Therefore this function removes callback-chan for relevant job threads. To avoid conflicting deletes, only :main thread for each step performs the deletion.
+  Before the deletion the queue is checked for potential job thread (in a state :awaiting-join)."
+  (let [jobs-awaiting-join (atom [])]
+    [(clojure.walk/postwalk #(if (and (map? %) (contains? % :callback-chan))
+                               (do
+                                 (when (main-for-step? thread-stack (:step-id %))
+                                   (try
+                                     (let [m (channel/poll! (:callback-chan %))]
+                                       (when m (swap! jobs-awaiting-join conj m)))
+                                     (log/info "Closing thread callback channel for step " (:step-id %) " and thread " (:thread-id %) " before suspending the thread. Deleting channel " (:callback-chan %) " now...")
+                                     (channel/delete-mq-chan (:callback-chan %))
+                                     (catch Exception e
+                                       (log/info e "Closing thread callback channels before suspending the thread. Channel " (:callback-chan %) " has already been closed:"))))
+                                 (dissoc % :callback-chan))
+                               %)
+                            parallel-threads)
+     jobs-awaiting-join]))
+
+#_(defn suspend-join-operations [{:keys [parallel-threads thread-stack] :as job}]
+  (if parallel-threads
+    #_(update-in job [:parallel-threads] remove-thread-callbacks thread-stack)
+    (let [[cleaned-threads join-jobs-atom] (remove-thread-callbacks parallel-threads thread-stack)]
+      (into [(assoc job :parallel-threads cleaned-threads)] @join-jobs-atom ))
+    [job]))
+
+
+(defn resume-jobs! [system-key id jobs]
+  (assert (system/is-running? system-key) "Cannot resume a job in a system that is not running!")
+  (assert (vector? jobs) (str "Cannot resume a job " id " - was not found"))
+  (assert (not-empty jobs) (str "Cannot resume a job " id " - was not found"))
+  (let [{:keys [new-jobs-chan mq-session-pool jobs-cmd-exchange] :as system} (get-in @system/systems-state [system-key :system])]
+    (channel/with-mq-sessionpool (:pool mq-session-pool)
+                                 (let [jobs (if (> (count jobs) 1) (revive-thread-callbacks! jobs) jobs)]
+                                    ;;FIXME this needs to be unique per each job thread!!!
+                                   (mapv #(>!! new-jobs-chan (assoc % :commands-ch (channel/bind-chan jobs-cmd-exchange (channel/mq-chan nil true) id)
+                                                                      :state :running)) jobs)))))
+
+(defn command->job "Sends a (suspend) command to job cmd exchange. This will be retrieved by the job only if the job has :supendable? flag set to true."
+  [system-key jobid command]
+  (assert (system/is-running? system-key) "Cannot suspend a job in a system that is not running!")
+  (let [{:keys [mq-session-pool jobs-cmd-exchange] :as system} (get-in @system/systems-state [system-key :system])]
+    (log/info "Sending a (suspend) command to job cmd exchange: " {:command command :jobid jobid})
+    (channel/with-mq-sessionpool (:pool mq-session-pool)
+                                 (>!! jobs-cmd-exchange {:command command :jobid jobid}))))
+
+(defn init-first-step [{{:keys [steps] :as jobdef} :jobdef :keys [state next-step jobdir properties step-start node-id worker-id] :as job}]
   "Initializes first step of a job. Takes a job map as an argument and returns the updated map. The step function is NOT called in the process.
 	if provided job is in :initial state, it finds a first step in steps vector and uses it as a current step.
-	Job's properties are updated with step properties (and overriden if necessary) and its state is changed to :running."
+	Job's state is changed to :running."
   (if (= state :initial)
     (let [step (first steps)]
       (log/info "Initializing a new job; First step will be: [" (:id step) "]")
       (assoc job
              :step step
              :state :running
+             :step-state :running
+             :history (conj (get job :history) {:id (:id step) :step-state :running :start step-start :node-id node-id :worker-id worker-id :retry-count 0})
              :step-start step-start))
     job))
 
@@ -162,13 +296,13 @@
       false
       (throw (IllegalStateException. "Multiple next steps found, but one of them is join! Join can be used only as a single next step.")))))
 
-(defn init-step [{{:keys [steps] :as jobdef} :jobdef :keys [state step-start next-step jobdir properties step-retries node-id] :as job}]
+(defn init-step [{{:keys [steps] :as jobdef} :jobdef :keys [state step-start next-step jobdir properties step-retries node-id worker-id history] :as job}]
   (let [step (first (filter #(= (:id %) next-step) steps))
         retry-count (or (get step-retries next-step) 0)
         retrying? (> retry-count 0)]
       (log/info "Initializing a next step; next step ["next-step"] was found among steps as step [" (:id step) "]")
       (assoc job
-             :step step :step-start step-start :step-state (if retrying? :retrying :running) :history (conj (get job :history) {:id (:id step) :step-state (if retrying? :retrying :running) :start step-start :node-id node-id :retry-count retry-count}))))
+             :step step :step-start step-start :step-state (if retrying? :retrying :running) :history (conj history {:id (:id step) :step-state (if retrying? :retrying :running) :start step-start :node-id node-id :worker-id worker-id :retry-count retry-count}))))
 
 (defn initialize-step [{:keys [state] :as job}]
   (if (= state :initial)
@@ -267,91 +401,91 @@
       result-seq)))
 
 (defn process-reduce-step [{{:keys [terminate-standalone? map-step-id commit-interval] :as properties} :properties
-                            {step-id :id :as step}                                                     :step map-steps :map-steps jobdir :jobdir jobid :jobid :as job}]
-  (assert jobdir)                                           ;;TODO use try/catch?
-  (let [map-step (get map-steps map-step-id)
-        _ (assert map-step "No matching map step found for a reduce step.")
-        {:keys [dispatched-indexes aggregator-notif-ch aggregator-callback-ch standalone-system? sys-key]} map-step
-        dispatched-count (count dispatched-indexes)
-        workload-fn (get step :workload-fn)
-        map-step-id-log (java.io.File. jobdir (str step-id ".reduce.notif"))
-        map-step-id-tuples (if-not (.exists map-step-id-log) (atom nil) (atom (read-string (slurp map-step-id-log))))
-        processed-indexes (atom #{})
-        processed-count (atom 0)
-        uncommitted-msgs (atom [])
-        commit-log-tuples (java.io.File. jobdir (str step-id ".reduce.log"))
-        processed-tuples (if-not (.exists commit-log-tuples) (atom [])
-                                                             (atom (read-string (str "[" (slurp commit-log-tuples) "]")))) ;;FIXME read only if non zero size!!!
-        #_(when-not (.exists commit-log-tuples) (.createNewFile commit-log-tuples))
-        commit-log (java.io.File. jobdir (str step-id ".reduce.result"))
-        commit-log-bkp (java.io.File. jobdir (str step-id ".reduce.result.bkp"))
-        failover? (.exists commit-log)
-        result (if-not failover? nil
-                                 (try
-                                   (with-open [in (DataInputStream. (io/input-stream commit-log))] ;;FIXME read only if non zero size!!!
-                                     (nippy/thaw-from-in! in))
-                                   (catch Exception e
-                                     (log/warn "Failed to read from commit log of a reduce step " step-id "! Trying to read redundant log file...")
-                                     (with-open [in (DataInputStream. (io/input-stream commit-log-bkp))] ;;FIXME read only if non zero size!!!
-                                       (nippy/thaw-from-in! in)))))
-        #_(when-not failover? (.createNewFile commit-log)
-                              (.createNewFile commit-log-bkp))
-        commit-fn (fn [r]                                   ;;TODO keep the output streams opened to improve performance (close them when finished and on exception) - i.e. take the stream as an input argument; move the with open macro out and embed the whole loop in it
-                    (with-open [w (DataOutputStream. (io/output-stream commit-log))]
-                      (nippy/freeze-to-out! w r)
-                      (.flush w))
-                    (with-open [writer (clojure.java.io/writer commit-log-tuples :append true)]
-                      (doall (map #(.write writer (str [(:tracking-id %) (:jobid %)])) @uncommitted-msgs))
-                      (.flush writer))
-                    (doall (map #(channel/ack! aggregator-callback-ch %) @uncommitted-msgs))
-                    (with-open [w (DataOutputStream. (io/output-stream commit-log-bkp))]
-                      (nippy/freeze-to-out! w r)
-                      (.flush w))
-                    (reset! uncommitted-msgs []))
-        _ (log/debug "Reduce step " step-id " is starting to poll following aggregator-callback channel: [" aggregator-callback-ch "]. Awaiting [" dispatched-count "] dispatched messages...")
-        _ (log/debug "Map step is " map-step)
-        end-result (loop [result result]
-                     (channel/alt!! [aggregator-callback-ch aggregator-notif-ch]
-                                    ([m ch]
-                                      (cond
-                                        (= ch aggregator-callback-ch) (let [r (exp/run-exfn workload-fn result (:properties m))] ;;
-                                                                        (log/debug "Aggregator step " step-id " retrieved a callback message from a splitter step: " m)
-                                                                        (swap! processed-count inc) ;;TODO currently this is now single-threaded but if multithreaded in future use STM!
-                                                                        (swap! processed-indexes conj (:tracking-id m))
-                                                                        (swap! processed-tuples conj [(:tracking-id m) (:jobid m)])
-                                                                        (swap! uncommitted-msgs conj m)
-                                                                        (when-not (< (count @uncommitted-msgs) commit-interval)
-                                                                          (commit-fn r))
-                                                                        (if (and (>= @processed-count dispatched-count) @map-step-id-tuples (subset? (set @map-step-id-tuples) (set @processed-tuples)))
-                                                                          (do (log/debug "NOT RECURRING; sets are " (set @map-step-id-tuples) (set @processed-tuples))
-                                                                              (when-not (empty? @uncommitted-msgs) (commit-fn r))
-                                                                              (channel/ack! ch @map-step-id-tuples)
-                                                                              r)
-                                                                          (do (log/debug "RECURRING; sets are " (set @map-step-id-tuples) (set @processed-tuples))
-                                                                              (recur r))))
-                                        (= ch aggregator-notif-ch) (do (log/debug "Aggregator step " step-id " retrieved a notification message from a splitter step: " m)
-                                                                       (reset! map-step-id-tuples m)
-                                                                       (spit map-step-id-log m)
-                                                                       (if (and (>= @processed-count dispatched-count) (subset? (set @map-step-id-tuples) (set @processed-tuples)))
-                                                                         (do (log/debug "NOT RECURRING ; sets are " (set @map-step-id-tuples) (set @processed-tuples))
-                                                                             (when-not (empty? @uncommitted-msgs) (commit-fn result))
-                                                                             (channel/ack! ch @map-step-id-tuples)
-                                                                             result)
-                                                                         (do (log/debug "RECURRING ; sets are " (set @map-step-id-tuples) (set @processed-tuples))
-                                                                             (recur result))))
-                                        :else (throw (IllegalStateException. "Unexpected channel responded to blocking alt!!"))))
-                                    :priority true))]
-    (thread
-      (channel/delete-mq-chan aggregator-callback-ch)
-      (channel/delete-mq-chan aggregator-notif-ch)
-      (when (and standalone-system? terminate-standalone? sys-key)
-        (when *cmd-exchange-ch* (channel/with-mq-session (channel/current-session)
-                                                         (async/>!! *cmd-exchange-ch*
-                                                                    `(titanoboa.system/stop-system! ~sys-key ~jobid))))
-        (let [stopped-system (system/stop-system! sys-key jobid)]
-          (Thread/sleep 1000)
-          (system/cleanup-system! stopped-system))))
-    {:result end-result :reduce-step {:map-step-id map-step-id :map-step-id-tuples @map-step-id-tuples}})
+                         {step-id :id :as step} :step map-steps :map-steps jobdir :jobdir jobid :jobid :as job}]
+  (assert jobdir) ;;TODO use try/catch?
+    (let [map-step (get map-steps map-step-id)
+          _ (assert map-step "No matching map step found for a reduce step." )
+          {:keys [dispatched-indexes aggregator-notif-ch aggregator-callback-ch standalone-system? sys-key]} map-step
+          dispatched-count (count dispatched-indexes)
+          workload-fn (get step :workload-fn)
+          map-step-id-log (java.io.File. jobdir (str step-id ".reduce.notif"))
+          map-step-id-tuples (if-not (.exists map-step-id-log) (atom nil) (atom (read-string (slurp map-step-id-log))))
+          processed-indexes (atom #{})
+          processed-count (atom 0)
+          uncommitted-msgs (atom [])
+          commit-log-tuples (java.io.File. jobdir (str step-id ".reduce.log"))
+          processed-tuples (if-not (.exists commit-log-tuples) (atom [])
+                                                               (atom (read-string (str "[" (slurp commit-log-tuples) "]")))) ;;FIXME read only if non zero size!!!
+           #_(when-not (.exists commit-log-tuples) (.createNewFile commit-log-tuples))
+          commit-log (java.io.File. jobdir (str step-id ".reduce.result"))
+          commit-log-bkp (java.io.File. jobdir (str step-id ".reduce.result.bkp"))
+          failover? (.exists commit-log)
+          result (if-not failover? nil
+                                   (try
+                                     (with-open [in (DataInputStream. (io/input-stream commit-log))] ;;FIXME read only if non zero size!!!
+                                         (nippy/thaw-from-in! in))
+                                     (catch Exception e
+                                       (log/warn "Failed to read from commit log of a reduce step " step-id "! Trying to read redundant log file...")
+                                       (with-open [in (DataInputStream. (io/input-stream commit-log-bkp))] ;;FIXME read only if non zero size!!!
+                                         (nippy/thaw-from-in! in)))))
+           #_(when-not failover? (.createNewFile commit-log)
+                                (.createNewFile commit-log-bkp))
+          commit-fn (fn [r] ;;TODO keep the output streams opened to improve performance (close them when finished and on exception) - i.e. take the stream as an input argument; move the with open macro out and embed the whole loop in it
+                      (with-open [w (DataOutputStream. (io/output-stream commit-log))]
+                        (nippy/freeze-to-out! w r)
+                          (.flush w))
+                      (with-open [writer (clojure.java.io/writer commit-log-tuples :append true)]
+                        (doall (map #(.write writer (str [(:tracking-id %) (:jobid %)])) @uncommitted-msgs))
+                        (.flush writer))
+                      (doall (map #(channel/ack! aggregator-callback-ch %) @uncommitted-msgs))
+                      (with-open [w (DataOutputStream. (io/output-stream commit-log-bkp))]
+                        (nippy/freeze-to-out! w r)
+                        (.flush w))
+                      (reset! uncommitted-msgs []))
+      _ (log/debug "Reduce step " step-id " is starting to poll following aggregator-callback channel: [" aggregator-callback-ch "]. Awaiting [" dispatched-count "] dispatched messages...")
+      _ (log/debug "Map step is " map-step)
+      end-result (loop [result result]
+        (channel/alt!! [aggregator-callback-ch aggregator-notif-ch]
+                       ([m ch]
+                         (cond
+                           (= ch aggregator-callback-ch) (let [r (exp/run-exfn workload-fn result (:properties m))] ;;
+                                                           (log/debug "Aggregator step " step-id " retrieved a callback message from a splitter step: " m)
+                                                             (swap! processed-count inc) ;;TODO currently this is now single-threaded but if multithreaded in future use STM!
+                                                             (swap! processed-indexes conj (:tracking-id m))
+                                                             (swap! processed-tuples conj [(:tracking-id m) (:jobid m)])
+                                                             (swap! uncommitted-msgs conj m)
+                                                             (when-not (< (count @uncommitted-msgs) commit-interval)
+                                                               (commit-fn r))
+                                                             (if (and (>= @processed-count dispatched-count) @map-step-id-tuples (subset? (set @map-step-id-tuples) (set @processed-tuples)))
+                                                               (do (log/debug "NOT RECURRING; sets are " (set @map-step-id-tuples) (set @processed-tuples))
+                                                                   (when-not (empty? @uncommitted-msgs) (commit-fn r))
+                                                                   (channel/ack! ch @map-step-id-tuples)
+                                                                    r)
+                                                               (do (log/debug "RECURRING; sets are " (set @map-step-id-tuples) (set @processed-tuples))
+                                                                   (recur r))))
+                           (= ch aggregator-notif-ch) (do (log/debug "Aggregator step " step-id " retrieved a notification message from a splitter step: " m)
+                                                          (reset! map-step-id-tuples m)
+                                                          (spit map-step-id-log m)
+                                                          (if (and (>= @processed-count dispatched-count) (subset? (set @map-step-id-tuples) (set @processed-tuples)))
+                                                            (do (log/debug "NOT RECURRING ; sets are " (set @map-step-id-tuples) (set @processed-tuples))
+                                                                (when-not (empty? @uncommitted-msgs) (commit-fn result))
+                                                                (channel/ack! ch @map-step-id-tuples)
+                                                                result)
+                                                            (do (log/debug "RECURRING ; sets are " (set @map-step-id-tuples) (set @processed-tuples))
+                                                                (recur result))))
+                           :else (throw (IllegalStateException. "Unexpected channel responded to blocking alt!!"))))
+                       :priority true))]
+      (thread
+        (channel/delete-mq-chan aggregator-callback-ch)
+        (channel/delete-mq-chan aggregator-notif-ch)
+        (when (and standalone-system? terminate-standalone? sys-key)
+          (when *cmd-exchange-ch*  (channel/with-mq-session (channel/current-session)
+                                 (async/>!! *cmd-exchange-ch*
+                                            `(titanoboa.system/stop-system! ~sys-key ~jobid))))
+          (let [stopped-system (system/stop-system! sys-key jobid)]
+            (Thread/sleep 1000)
+            (system/cleanup-system! stopped-system))))
+      {:result end-result :reduce-step {:map-step-id map-step-id :map-step-id-tuples @map-step-id-tuples}})
     ;;TODO remove given map-step-id from the map-steps map and pass it on? - so as same map step cannot be processed by two separate reduce steps?
   ;;FIXME test if works when used on undistributed system with async channels!!!
 )
@@ -386,7 +520,7 @@
   (when (seq coll)
     (if-not (nil? (pred (first coll))) (pred (first coll)) (recur pred (next coll)))))
 
-(defn process-step [{:keys [state step step-start start map-steps reduce-steps thread-stack step-retries] :as job} node-id]
+(defn process-step [{:keys [state step step-start start map-steps reduce-steps thread-stack step-retries node-id worker-id] :as job}]
   "Processes current step by evaluating and calling step's workload function. Returns a touple of commit callback channel (if applicable) and the updated step map.
   The commit callback channel is used only if one of the step's threads is still running upon steps completion
   - the channel will be used to defer current job message's receipt acknowledgement."
@@ -428,6 +562,7 @@
         step-end (java.util.Date.)
         history-map {:id step-id
                      :node-id node-id
+                     :worker-id worker-id
                      :thread-stack thread-stack
                      :next-step next-step
                      :result result
@@ -469,34 +604,46 @@
 
 ;;TODO just use callback-ch property on job? -> NO NEED for :thread-stack outside of the main thread?!?
 ;;support for parallel steps:
-#_{:parallel-threads [[:step-id {:main {:thread-id :main
+#_{:parallel-threads [[:step-id {:main {:step-id dispatch-step
+                                        :thread-id :main
+                                        :jobid "UUID"
                                         :next-step next-step
-                                        :callback-chan callback-chan}
-                                 :thread-1 {:thread-id :thread-1
+                                        :callback-chan nil}
+                                 :thread-1 {:step-id dispatch-step
+                                            :thread-id :thread-1
+                                            :jobid "UUID"
                                             :next-step next-step
                                             :callback-chan callback-chan}}]]
    :thread-stack [[step-id thread-id][step-id thread-id][step-id thread-id]]}
-;;TODO consider changing job id of non main threads (thread id and job id would be a new UUID)
-(defn dispatch-job-threads! [out-jobs-ch {:keys [step next-step parallel-threads thread-call-stack] :as job}]
+(defn dispatch-job-threads! [out-jobs-ch {:keys [step next-step parallel-threads thread-call-stack] :as job} jobs-cmd-exchange]
   "if multiple next steps exist all are dispatched in parallel. First one is always selected as :main thread that will carry jobs history and will orchestrate join of the threads when time comes.
   Each job thread is attached a :thread-stack and :parallel-threads vectors."
   (if-not (vector? next-step)
     (>!! out-jobs-ch job)
     (let [step-id (:id step)
           steps-maps (->> next-step
-                          (map-indexed (fn [idx item] {:next-step item
+                          (map-indexed (fn [idx item] {:step-id step-id
+                                                       :next-step item
                                                        :thread-id (if (zero? idx) :main (keyword (str "thread-" idx)))
-                                                       :callback-chan (channel/mq-chan nil false)}))
+                                                       :callback-chan (when-not (zero? idx) (channel/mq-chan nil false)) ;;FIXME confirm we do really NOT need :callback-chan for :main thread
+                                                       :jobid (if (zero? idx) (:jobid job) (str (java.util.UUID/randomUUID)))
+                                                       }))
                           vec)
           job (if (and (:parallel-threads job) (:thread-stack job))
                 job
                 (assoc job :parallel-threads [] :thread-stack []))]
       (log/info "Dispatching multiple parallel next steps: " steps-maps)
-      (mapv (fn [{:keys [next-step thread-id callback-chan]}]
+      (mapv (fn [{:keys [next-step thread-id callback-chan jobid]}]
               (>!! out-jobs-ch (-> job
                                    (assoc :next-step next-step)
+                                   (assoc :jobid jobid)
+                                   (assoc :parent-jobid (if (and (= :main thread-id) (nil? (:parent-jobid job))) nil (or (:parent-jobid job) (:jobid job))))
+                                   ((fn [j] (if (and (not= :main thread-id) (:suspendable? job)) (assoc j :commands-ch
+                                                                                                         (channel/bind-chan jobs-cmd-exchange (channel/mq-chan nil true) (or (:parent-jobid job) (:jobid job))))
+                                                                                                j )))
                                    (update-in [:parallel-threads] conj [step-id (util/keyify :thread-id steps-maps)])
                                    (update-in [:thread-stack] conj [step-id thread-id])
+                                   ((fn [j] (if (= :main thread-id) (assoc j :isparent? true) j)))
                                    (assoc :history (if (= :main thread-id) (:history job) [])))))
             steps-maps))))
 
@@ -509,7 +656,7 @@
                           second
                           thread-id
                           :callback-chan)]
-    (>!! callback-chan job)))
+    (>!! callback-chan (assoc job :state :awaiting-join))))
 
 (defn trim-stack [job]
   (-> job
@@ -525,16 +672,16 @@
                                 (merge props (if (or step-end end) {:end (or step-end end)
                                                                     :duration (- (.getTime (or step-end end)) (.getTime (:step-start job)))} {})))))
 
-(defn orchestrate-join! [{:keys [thread-stack parallel-threads step] :as job}]
+(defn orchestrate-join-old! [{:keys [thread-stack parallel-threads step] :as job}]
   "To be performed from :main job thread. Orchestrates merge of other job threads (merges their properties into the current :main's).
-  Returns job with merged properties and with thread stack and parallel-threads stack that do not contain data of the threads that were merged
-  - i.e. are either empty or contain other outer threads that were not merged/dispatched yet."
+  Returns a tuple: 1) a job with merged properties and with thread stack and parallel-threads stack that do not contain data of the threads that were merged
+  - i.e. are either empty or contain other outer threads that were not merged/dispatched yet & 2) vector of functions that will perform ack when the job fully succeeds."
   (let [merge-with-fn (if-let [f (-> (get-in step [:properties :merge-with-fn])
                                      exp/eval-property)]
                         #(merge-with (fn [i1 i2]
                                        (try (f i1 i2)
                                             (catch Exception e
-                                              (log/warn "Failed to merge properties " i1 " and " i2 " during join: " e)
+                                              (log/warn "Failed to merge properties during join: " e)
                                               i2))) %1 %2)
                         merge)
         threads2merge (-> parallel-threads
@@ -546,7 +693,7 @@
                        #(thread (try
                                   (log/info "Waiting for thread [" (:thread-id %) "] to finish...")
                                   (let [j (<!! (:callback-chan %))]
-                                    (log/info "Thread [" (:thread-id %) "] finished. Preparing for merge into the main thread...")
+                                    (log/info "Thread [" (:thread-id %) "] finished. Preparing for merge this into the main thread: " j)
                                     [j (fn []
                                          (log/info "Acking message from thread [" (:thread-id %) "] and deleting its chan...")
                                          (channel/ack! (:callback-chan %) j)
@@ -558,10 +705,11 @@
         async-ch (async/merge async-ch-vec)]
     (loop [main-thread-job (trim-stack job)
            ack-fns-vec []]
-      (let [[job-thread ack-fn] (async/<!! async-ch)];;TODO add timeout
+      (let [[job-thread ack-fn] (async/<!! async-ch)] ;;FIXME alt! also on the command-ch; handle suspend command - drop and nack all retrieved job threads
+                                                      ;;TODO add timeout and potentially implement "LONG JOIN" - i.e. dont poll but sleep for specified number of seconds or even change state to sleep :sleep
         (if job-thread
-          (do (log/debug "Merging job with thread stack [" (:thread-stack job-thread) "] into the main thread... " )
-            (recur (-> main-thread-job
+          (do (log/info "Merging job with thread stack [" (:thread-stack job-thread) "] into the main thread... " )
+            (recur (-> main-thread-job   ;;TODO add property to join steps what minimal number of threads would suffice - i.e. only 3 out of 5 will do, merge after first 3 and continue
                        (update :properties merge-with-fn (:properties job-thread))
                        (update :history concat (:history job-thread))
                        (update :history #(into [] %))
@@ -577,28 +725,76 @@
                  (assoc :end (java.util.Date.)))
              ack-fns-vec]))))))
 
-(defn orchestrate-step [{:keys [step thread-stack] :as job} node-id]
+;;TODO do not use async threads - instead just use single threaded loop that will alt! on job thread channels incl. suspend channel
+;;TODO when susspend channel gets triggered it will : a) keep merged what got merged, remove those thread records from thread registry and suspend/persiste this semi-merged step OR b) nack everything and suspend in the state in which the job was consumed from q
+;;Seems B) is more straightforward
+(defn orchestrate-join! [{:keys [thread-stack parallel-threads step commands-ch] :as job}]
+  "To be performed from :main job thread. Orchestrates merge of other job threads (merges their properties into the current :main's).
+  Returns a tuple: 1) a job with merged properties and with thread stack and parallel-threads stack that do not contain data of the threads that were merged
+  - i.e. are either empty or contain other outer threads that were not merged/dispatched yet & 2) vector of functions that will perform ack when the job fully succeeds."
+  (let [merge-with-fn (if-let [f (-> (get-in step [:properties :merge-with-fn])
+                                     exp/eval-property)]
+                        #(merge-with (fn [i1 i2]
+                                       (try (f i1 i2)
+                                            (catch Exception e
+                                              (log/warn "Failed to merge properties during join: " e)
+                                              i2))) %1 %2)
+                        merge)
+        threads2merge (-> parallel-threads
+                          last
+                          second
+                          (dissoc :main)
+                          vals)
+        callback-chans (mapv :callback-chan threads2merge)]
+    (loop [main-thread-job (trim-stack job)
+           ack-fns-vec []
+           nack-fns-vec []
+           callback-chans callback-chans]
+     (if-not (empty? callback-chans)
+       (let [[job-thread p] (channel/alts!! (if commands-ch (into [commands-ch] callback-chans) callback-chans) :priority true)]
+           (if (= p commands-ch)
+           {:main-thread-job (assoc main-thread-job :state :suspended) :ack-fns-vec ack-fns-vec :nack-fns-vec nack-fns-vec}
+           (do (log/info "Merging job with thread stack [" (:thread-stack job-thread) "] into the main thread... " )
+                             (recur (-> main-thread-job   ;;TODO add property to join steps what minimal number of threads would suffice - i.e. only 3 out of 5 will do, merge after first 3 and continue
+                                        (update :properties merge-with-fn (:properties job-thread))
+                                        (update :history concat (:history job-thread))
+                                        (update :history #(into [] %))
+                                        (assoc :state (if (= :error (:state job-thread)) :error (:state main-thread-job)))
+                                        (assoc :step-state (if (or (= :error (:state job-thread)) (= :error (:state main-thread-job))) :error (:step-state main-thread-job)))
+                                        (add->history {:message (str "Merged thread with stack " (:thread-stack job-thread) " into main thread." )}))
+                                    (conj ack-fns-vec (fn []
+                                                        (log/info "Acking message from thread [" (:thread-stack job-thread) "] and deleting its chan " p)
+                                                        (channel/ack! p job-thread)
+                                                        (channel/delete-mq-chan p)))
+                                    (conj nack-fns-vec (fn []
+                                                        (log/info "Nacking message from thread [" (:thread-stack job-thread) "] since a suspend command was received in the middle of join, the merge is being rolled back...")
+                                                        (channel/nack! p job-thread)))
+                                    (vec (remove #(= % p) callback-chans))))))
+      {:main-thread-job main-thread-job :ack-fns-vec ack-fns-vec :nack-fns-vec nack-fns-vec}))))
+
+
+(defn orchestrate-step [{:keys [step thread-stack node-id worker-id] :as job}]
   "Wrapper function around process-step fn.
   Evaluates step's properties and processes the given step, but before that it also checks if step is of type join and if this is the main job thread - if so, then it also orchestrates the join.
   Returns a map containing job, a vector of ack functions that are to be called/committed later and a commit-callback-ch if acking is to be delayed (for map jobs)."
-  (let [;; [commit-callback-ch job] (process-step job node-id) ;;FIXME swap order of these two lines?
-        [main-thread-job ack-fns-vec] (if (= :join (:supertype step))
+  (let [{:keys [main-thread-job ack-fns-vec nack-fns-vec] :as return-map}
+        (if (= :join (:supertype step))
                                         (if (orchestrate-join? job)
                                           (do
-                                            (log/debug "Orchestrating join thread-stack: " thread-stack " before processing step " (:id step))
+                                            (log/info "Orchestrating join of thread-stack: " thread-stack " before processing step " (:id step))
                                             (orchestrate-join! job))
                                           (throw (IllegalStateException. "Join step should never be executed by a non-main thread!")))
-                                        [job []])
-        main-thread-job (exp/eval-ordered (:properties step) main-thread-job)
-        _ (log/debug "Evaluated properties for job at step " (:id step) ": \n" (:properties main-thread-job))
-        [commit-callback-ch main-thread-job] (if-not (= :error (:state main-thread-job))
-                                               (process-step main-thread-job node-id)
-                                               [nil main-thread-job])]
-    {:job main-thread-job
-     :ack-fns-vec ack-fns-vec
-     :commit-callback-ch commit-callback-ch}))
+                                        {:main-thread-job job :ack-fns-vec [] :nack-fns-vec []})]
+    (if (or (= :error (:state main-thread-job)) (= :suspended (:state main-thread-job)))
+      {:job main-thread-job :ack-fns-vec ack-fns-vec :nack-fns-vec nack-fns-vec}
+      (let [main-thread-job (exp/eval-ordered (:properties step) main-thread-job)
+            _ (log/debug "Evaluated properties for job at step " (:id step) ": \n" (:properties main-thread-job))
+            [commit-callback-ch main-thread-job] (process-step main-thread-job)]
+        {:job main-thread-job
+         :ack-fns-vec ack-fns-vec
+         :commit-callback-ch commit-callback-ch}))))
 
-(defn finalize-job! [{:keys [jobid thread-stack callback-ch] :as job} finished-ch ack-fns-vec update-cache-fn &[commit-callback-ch]]
+(defn finalize-job! [{:keys [jobid parent-jobid thread-stack callback-ch commands-ch] :as job} finished-ch ack-fns-vec update-cache-fn jobs-cmd-exchange &[commit-callback-ch]]
   "Clears job's thread stack and finishes the job. If there are any pending threads then either dispatches this job thread for merge or (if it is the main) orchestrates the merge.
   Then it acks the job message and updates cache, job master thread is also sent to finished-ch for archival."
   (loop [job job
@@ -609,11 +805,19 @@
       (dispatch4join? job) (do (log/debug "Dispatching 4 join with thread-stack: " thread-stack " after step " (get-in job [:step :id]))
                                (dispatch4join! job)
                                (mapv #(%) ack-fns-vec)
+                               (when commands-ch
+                                 (log/info "Deleting/closing command channel for job..." jobid)
+                                 (channel/unbind-chan jobs-cmd-exchange commands-ch (or parent-jobid jobid))
+                                 (channel/delete-mq-chan commands-ch))
                                (update-cache-fn jobid job true))
       (orchestrate-join? job) (let [[{:keys [thread-stack] :as main-thread-job} new-ack-fns] (orchestrate-join! job)]
                                 (recur main-thread-job (into [] (concat ack-fns-vec new-ack-fns)) thread-stack))
       (empty? thread-stack) (do
                               (>!! finished-ch job)
+                              (when commands-ch
+                                (log/info "Deleting/closing command channel for job..." jobid)
+                                (channel/unbind-chan jobs-cmd-exchange commands-ch (or parent-jobid jobid))
+                                (channel/delete-mq-chan commands-ch))
                               (if-not commit-callback-ch
                                 (mapv (fn [f] (f))  ack-fns-vec)
                                 (thread (do (<!! commit-callback-ch)
@@ -623,47 +827,62 @@
                               (update-cache-fn jobid job true)
                               :finished))))
 
-;;TODO - will retries on error be done directly from here or will be handled by the "finished-ch" handler?
-;;TODO add furhter channels based on job state - i.e. suspended and error?
+(defn suspend-job! [{:keys [jobid parent-jobid thread-stack callback-ch commands-ch] :as job} retired-thread-tuples suspended-ch ack-fns-vec update-cache-fn jobs-cmd-exchange]
+  (>!! suspended-ch job)
+  (mapv (fn [[job-thread ackfn]] (when job-thread (>!! suspended-ch (assoc job-thread :state :suspended-awaiting-join)))) retired-thread-tuples)
+  (when commands-ch
+    (log/info "Deleting/closing command channel for job..." jobid)
+    (channel/unbind-chan jobs-cmd-exchange commands-ch (or parent-jobid jobid))
+    (channel/delete-mq-chan commands-ch))
+  (mapv (fn [f] (f))  ack-fns-vec)
+  (mapv (fn [[job-thread ackfn]] (when ackfn (ackfn))) retired-thread-tuples)
+  (if callback-ch (>!! callback-ch job))
+  (update-cache-fn jobid job true)
+  :suspended)
+
 ;;TODO - out/finished/suspended channel could be also route to RDBMS - will be up to handler
-(defn start-processor! [{:keys [stop-chan in-jobs-ch new-jobs-ch out-jobs-ch finished-ch state-agent eviction-agent mq-session node-id
-                                cmd-exchange-ch server-config dont-log-properties trim-logged-properties properties-trim-size] :as config}]
-  (thread ;;TODO use java Thread .start to allow getting Thread's handle and send interrupt signel during wait/IO etc.
+(defn start-processor! [{:keys [stop-chan in-jobs-ch new-jobs-ch out-jobs-ch finished-ch suspended-ch state-agent eviction-agent mq-session node-id worker-id sys-key
+                                cmd-exchange-ch jobs-cmd-exchange server-config dont-log-properties trim-logged-properties properties-trim-size old-has-priority restart-workers-on-error] :as config}]
     (let [prune-job (get-prop-trimming-fn dont-log-properties trim-logged-properties properties-trim-size)
           mark-for-eviction (fn [jobid] (send eviction-agent assoc jobid (java.util.Date.)))
           update-job-cache (fn [jobid job &[evict?]] (do (send state-agent assoc jobid (prune-job job))
                                                       (when evict? (mark-for-eviction jobid))))
           dont-evict (fn [jobid] (send eviction-agent dissoc jobid))]
       (binding [*cmd-exchange-ch* cmd-exchange-ch *server-config* server-config] ;;TODO this binding is needed only for map (splitter) type of step - not sure if it is elegant
-        (channel/with-mq-session (:session mq-session)
-                                 (loop []
+        (channel/with-mq-session mq-session
+                                 (try
+                                  (loop []
                                    (channel/alt!!
                                      stop-chan :stopped
                                      [in-jobs-ch new-jobs-ch] ([m p] ;;FIXME update-job-cache + call dont-evict before calling initialize-step!
-                                                                (let [{:keys [state step step-start jobdir jobid properties commands-ch thread-stack step-retries] :as job} (initialize-step (assoc m :step-start (java.util.Date.) :node-id node-id))
+                                                                (let [{:keys [state step step-start jobdir jobid properties commands-ch thread-stack step-retries] :as job} (initialize-step (assoc m :step-start (java.util.Date.) :node-id node-id :worker-id worker-id))
                                                                       retry-count (get step-retries (:id step))
-                                                                      command nil ];;(poll! commands-ch)
-                                                                  ;;TODO listen to a channel (will there be 1 channel for each job?) for lifecycle commands (pause/stop the job) - if suspended put to some "suspended" queue? Also jobs requiring human interaction will go there;
-                                                                  (log/info "Retrieved job [" jobid "] from jobs channel; Starting step [" (:id step) "] with thread stack " (:thread-stack job) )
+                                                                      command (when commands-ch (channel/poll! commands-ch))]
+                                                                  (log/info "Retrieved job [" jobid "] from jobs channel; Starting step [" (:id step) "] with thread stack " (:thread-stack job) "; Command is " command)
                                                                   (dont-evict jobid)
                                                                   (update-job-cache jobid job)
                                                                   (try
                                                                     (if command
-                                                                      (case (.toLowerCase (str command));;TODO route to particular output channel + mark for eviction
-                                                                        (:pause "pause" :suspend "suspend") (let [message "Retrieved pause command for this job, pausing..."
-                                                                                                                  history-map {:message message :timestamp (java.util.Date.) :node-id node-id}
-                                                                                                                  job (assoc m :state :suspended :history (conj (get m :history) history-map))]
+                                                                      (case (:command command);;route to particular output channel + mark for eviction + delete command queue (cant serialize core.async queue to DB) - will have to recreate/bind upon resubmit
+                                                                        (:pause "pause" :suspend "suspend") (let [message (str "Retrieved suspend command for job " jobid ", pausing...")
+                                                                                                                  history-map {:message message :timestamp (java.util.Date.) :node-id node-id :worker-id worker-id}
+                                                                                                                  retired-thread-tuples (suspend-join-operations m)
+                                                                                                                  job (-> m
+                                                                                                                          (assoc :state :suspended  :history (conj (:history m) history-map))
+                                                                                                                          remove-thread-callbacks)];;TODO call this only from main lineage of threads; add method to just remove-thread-callbacks and invoke it from all other threads
                                                                                                               (log/info message)
-                                                                                                              (update-job-cache jobid job)))
+                                                                                                              (suspend-job! job retired-thread-tuples suspended-ch [#(channel/ack! p m)] update-job-cache jobs-cmd-exchange)))
                                                                       (let [{commit-callback-ch :commit-callback-ch
                                                                              ack-fns :ack-fns-vec
-                                                                             {:keys [next-step step state callback-ch aggregator-notif-ch thread-stack] :as job} :job} (orchestrate-step job node-id)
+                                                                             nack-fns :nack-fns-vec
+                                                                             {:keys [next-step step state callback-ch aggregator-notif-ch thread-stack] :as job} :job} (orchestrate-step job)
+                                                                            _ (log/info "orchestrate-step called with results: state: " state " next-step: " next-step " thread-stack: " thread-stack)
                                                                             ack-fns-vec (conj (or ack-fns []) #(do (log/info "Acking main message for step " (:id step) " with thread stack " thread-stack)
                                                                                                                    (channel/ack! p m)))]
-                                                                        (case state ;;TODO add also :suspended state
+                                                                        (case state
                                                                           :running (do
                                                                                      (log/info "Next step is " next-step "; Submitting into jobs channel for next step's processing...")
-                                                                                     (dispatch-job-threads! out-jobs-ch job)
+                                                                                     (dispatch-job-threads! out-jobs-ch job jobs-cmd-exchange)
                                                                                      (update-job-cache jobid job true)
                                                                                      (if-not commit-callback-ch
                                                                                        (mapv (fn [f] (f)) ack-fns-vec)
@@ -671,32 +890,54 @@
                                                                                                  (>!! aggregator-notif-ch processed-id-tuples) ;;notify aggregator step - alternatively this is not needed as commit log is stored in the job folder
                                                                                                  (mapv (fn [f] (f)) ack-fns-vec))))
                                                                                      :running)
-                                                                          :finished (finalize-job! job finished-ch ack-fns-vec update-job-cache)
-                                                                          :error (finalize-job! job finished-ch ack-fns-vec update-job-cache))))
+                                                                          :suspended (let [message (str "Retrieved suspend command for job " jobid ", pausing...")
+                                                                                         _ (log/info message)
+                                                                                         history-map {:message message :timestamp (java.util.Date.) :node-id node-id :worker-id worker-id}
+                                                                                         _ (mapv (fn [f] (f)) nack-fns)
+                                                                                         retired-thread-tuples (suspend-join-operations m)
+                                                                                         job (-> m
+                                                                                                 (assoc :state :suspended  :history (conj (:history m) history-map))
+                                                                                                 remove-thread-callbacks)];;TODO call this only from main lineage of threads; add method to just remove-thread-callbacks and invoke it from all other threads
+                                                                                     (suspend-job! job retired-thread-tuples suspended-ch [#(channel/ack! p m)] update-job-cache jobs-cmd-exchange))
+                                                                          :finished (finalize-job! job finished-ch ack-fns-vec update-job-cache jobs-cmd-exchange)
+                                                                          :error (finalize-job! job finished-ch ack-fns-vec update-job-cache jobs-cmd-exchange))))
                                                                     (catch Exception e
                                                                       (log/warn e "Something went wrong during processing of a step. Stopping job...")
                                                                       (let [timestamp (java.util.Date.)
-                                                                            history-map {:id (:id step) :step-state :error :thread-stack thread-stack :result :error :exception (Throwable->map e) :node-id node-id :retry-count retry-count :start step-start :end timestamp :duration (- (.getTime timestamp) (.getTime step-start))}
+                                                                            history-map {:id (:id step) :step-state :error :thread-stack thread-stack :result :error :exception (Throwable->map e) :node-id node-id :worker-id worker-id :retry-count retry-count :start step-start :end timestamp :duration (- (.getTime timestamp) (.getTime step-start))}
                                                                             job (assoc job :state :error :step-state :error :history (conj (get job :history) history-map) :end timestamp)]
-                                                                        (finalize-job! job finished-ch [#(channel/ack! p m)] update-job-cache)))))
+                                                                        (finalize-job! job finished-ch [#(channel/ack! p m)] update-job-cache jobs-cmd-exchange)))))
                                                                 (recur))
-                                     :priority true)))))));;TODO make priority configurable in config
+                                     :priority (if (false? old-has-priority) false true)))
+                                  (catch InterruptedException ie
+                                    (log/info "Worker thread " node-id "(" worker-id") has been interrupted."))
+                                  (catch Exception e
+                                    (log/fatal e "Worker thread " node-id "(" worker-id") encountered error!
+                                    Since the whole worker system may be in unstable state, it will be stopped now and a new one will " (when-not restart-workers-on-error "NOT") " be started.")
+                                    (when restart-workers-on-error (thread (system/stop-worker! sys-key worker-id)
+                                                                           (system/start-workers! sys-key (:systems-catalogue server-config) 1)))))))))
 
 
-(defrecord JobWorker [stop-chan in-jobs-ch new-jobs-ch out-jobs-ch finished-ch state-agent mq-session node-id cmd-exchange-ch
-                      server-config dont-log-properties trim-logged-properties properties-trim-size]
+(defrecord JobWorker [stop-chan in-jobs-ch new-jobs-ch out-jobs-ch finished-ch suspended-ch state-agent mq-session node-id sys-key worker-id cmd-exchange-ch jobs-cmd-exchange
+                      server-config dont-log-properties trim-logged-properties properties-trim-size thread-handle old-has-priority restart-workers-on-error]
   component/Lifecycle
-  (start [this] ;;TODO use thread interrupt?
-         (if-not stop-chan
-           (let [stop-chan (chan (dropping-buffer 1))
-                 this (assoc this :stop-chan stop-chan)]
-            (log/info "Starting job worker....")
-            (start-processor! this)
-            this)))
+  (start [this]
+    (if-not stop-chan
+      (let [stop-chan (chan (dropping-buffer 1))
+            this (assoc this :stop-chan stop-chan)
+            th (Thread. (fn [] (start-processor! this)))]
+        (log/info "Starting job worker....")
+        (.start th)
+        (assoc this
+          :thread-handle th))))
   (stop [this]
-        (log/info "Stopping job worker gracefully; sending a stop signal to the worker via service bus....")
-        (>!! stop-chan :stop)
-        (async/close! stop-chan)
-        (Thread/sleep 100) ;;FIXME check whether it stopped - if not use thread interruption to stop wait/IO operations within worker!
-        (assoc this :stop-chan nil)))
+    (when stop-chan
+      (log/info "Stopping job worker gracefully; sending a stop signal to the worker via service bus....")
+      (>!! stop-chan :stop)
+      (async/close! stop-chan)
+      (Thread/sleep 100))
+    (when thread-handle
+      (log/info "Terminating job worker thread; sending an interrupt signal....")
+      (try (.interrupt thread-handle) (catch Exception e (log/info e "Exception thrown while interrupting worker thread:"))))
+    (assoc this :stop-chan nil :thread-handle nil)))
 

@@ -11,13 +11,14 @@
             [honeysql.helpers :as h]
             [clojure.java.jdbc :as jdbc]
             [taoensso.nippy :as nippy]
-            [titanoboa.database :as db]))
+            [titanoboa.database :as db]
+            [clojure.edn :as edn]))
 
 
 (defmethod db/list-jobs "org.postgresql.Driver"
   [ds limit offset order]
   (let [query (cond->
-                {:select [:jobid :jobdef :revision :state :start :ended :stepid :steptype :stepstate (sql/raw "count(*) OVER() AS totalcount")],
+                {:select [:jobid :jobdef :revision :state :start :ended :stepid :steptype :stepstate :isparent :parentjobid :threadstack (sql/raw "count(*) OVER() AS totalcount")],
                  :from [:jobs]}
                 limit (h/limit limit)
                 offset (h/offset offset)
@@ -25,15 +26,18 @@
                 true sql/format)]
     (reduce (fn [val item]
               (-> (if (:totalcount val) val (assoc val :totalcount (:totalcount item)))
-                  (update-in [:values] conj {:jobid (str (:jobid item))
-                                             :jobdef {:name (:jobdef item)
-                                                      :revision (:revision item)}
-                                             :state (keyword (:state item))
-                                             :start (:start item)
-                                             :end (:ended item)
-                                             :step-state (keyword  (:stepstate item))
-                                             :step {:id  (:stepid item)
-                                                    :type (keyword (:steptype item))}})))
+                  (update-in [:values] conj {:jobid        (str (:jobid item))
+                                             :parent-jobid (when (:parentjobid item) (str (:parentjobid item)))
+                                             :jobdef       {:name     (:jobdef item)
+                                                            :revision (:revision item)}
+                                             :isparent?    (:isparent item)
+                                             :state        (keyword (:state item))
+                                             :start        (:start item)
+                                             :end          (:ended item)
+                                             :step-state   (keyword (:stepstate item))
+                                             :step         {:id   (:stepid item)
+                                                            :type (keyword (:steptype item))}
+                                             :thread-stack (edn/read-string (:threadstack item))})))
             {:offset offset :limit limit :order order :values []}
             (jdbc/query ds query))))
 

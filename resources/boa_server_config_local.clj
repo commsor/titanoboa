@@ -1,5 +1,6 @@
 (in-ns 'titanoboa.server)
 (log/info "Hello, I am core.async server-config and I am being loaded...")
+(require 'titanoboa.system.local)
 (defonce archival-queue-local (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))
 (alter-var-root #'server-config
                 (constantly {:systems-catalogue

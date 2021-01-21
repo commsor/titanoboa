@@ -7,7 +7,7 @@
 ; You must not remove this notice, or any other, from this software.
 
 (ns titanoboa.handler
-  (:require [compojure.core :refer [GET POST PATCH PUT defroutes routes context]]
+  (:require [compojure.core :refer [GET POST PATCH PUT DELETE defroutes routes context]]
             [compojure.route :as route :refer [not-found resources]]
             [compojure.coercions :refer [as-int]]
             [clj-http.client :as client :refer [request]]
@@ -94,8 +94,13 @@
            :start (do (system/start-system-bundle! (util/s->key (http-util/url-decode system)) systems-catalogue config (int (or wcount 0)) scope) {:status 200})
            :restart {:status 200 :body (system/restart-system! (util/s->key (http-util/url-decode system)) systems-catalogue config)})})
       (POST "/workers" [] {:body (system/start-workers! (util/s->key (http-util/url-decode system)) systems-catalogue 1)});; TODO add PATCH to stop/start workers?
+      (DELETE "/workers/:worker-id" [worker-id]
+            {:body (system/stop-worker! (util/s->key (http-util/url-decode system)) (Long/parseLong worker-id))})
       (POST "/jobs" [sync & conf] (do (log/debug "Recieved request to start a job on system [" (http-util/url-decode system) "] with config ["conf"]")
                                {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system)) conf sync)}))
+      (PATCH "/jobs/:jobid" [jobid command]
+        (processor/command->job (util/s->key (http-util/url-decode system)) jobid command)
+        {:status 201 :body {:message "The command signal sent to the jobs command queue"}})
       (POST "/jobs/:jobdef-name" [jobdef-name & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
                                       {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system)) {:jobdef-name jobdef-name :properties properties} false)}))
       (POST "/jobs/:jobdef-name/:revision" [jobdef-name revision & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
@@ -119,8 +124,15 @@
                                                                   (if archive-ds-ks
                                                                     {:body (db/list-jobs (get-in @system/systems-state archive-ds-ks) (or limit 50) (or offset 0) (when (and order-by order) [(keyword order-by) (keyword order)]))}
                                                                     {:status 404 :body {}})))
-      (GET "/jobs/:jobid" [jobid] (if archive-ds-ks  {:body (db/get-job (get-in @system/systems-state archive-ds-ks) jobid)}
-                                                     {:status 404 :body {}})))))
+      (GET "/jobs/:jobid" [jobid] (if archive-ds-ks  {:body (db/get-jobs (get-in @system/systems-state archive-ds-ks) jobid)}
+                                                     {:status 404 :body {}}))
+      (PATCH "/jobs/:jobid" [jobid system command]
+        (case command
+          ("resume" :resume) (do
+           (processor/resume-jobs! system jobid (db/get-jobs (get-in @system/systems-state archive-ds-ks) jobid))
+           (db/delete-jobs (get-in @system/systems-state archive-ds-ks) jobid)
+           {:status 201 :body {:message "Job was resumed."}}) ;;TODO potential race condition - to minimize risk, delete first, then enqueue and then commit the DB transaction.
+          {:status 405 :body {:message "Unsupported command"}})))))
 
 (defn get-public-routes [{:keys [auth-ds-ks auth-conf auth?] :as config}]
   (routes

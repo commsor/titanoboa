@@ -11,11 +11,19 @@ CREATE TABLE jobs
   job bytea,
   revision text,
   steptype text,
+  parentjobid uuid,
+  isparent boolean,
+  threadstack text,
   CONSTRAINT jobs_pkey PRIMARY KEY (jobid)
 )
 WITH (
   OIDS=FALSE
 );
+
+CREATE INDEX jobs_parentjobid_idx
+  ON jobs
+  USING btree
+  (parentjobid);
 
 CREATE TABLE users
 (

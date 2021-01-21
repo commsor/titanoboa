@@ -34,9 +34,9 @@
   that provides maps in a format of {:connection RMQ-Connection-object :session RMQ-Session-object}).
   Binds session to a value you can retrieve
   with (current-session) within body.
-  If the session has already been bound then does nothing - to enable nested use of this macro without furhter consumption from the session pool."
+  If the pool is nil or the session has already been bound then does nothing - to enable nested use of this macro without further consumption from the session pool."
   [pool & body]
-  `(if *mq-session*
+  `(if (or *mq-session* (nil? ~pool))
      ~@body
      (let [c# (async/<!! ~pool)]
        (binding [*mq-session* (:session c#)]
@@ -88,11 +88,17 @@
 (defmethod ack! false [chan message] nil)
 
 (defmulti nack!
-  (fn [chan message] (instance? titanoboa.channel.TransChannelProtocol chan)))
+  (fn [chan message] (cond
+                       (instance? titanoboa.channel.TransChannelProtocol chan) :trans-channel-protocol
+                       (instance? clojure.core.async.impl.channels.ManyToManyChannel chan) :core-async
+                       :else :default)))
 
-(defmethod nack! true [chan message] (.nack! chan message))
+(defmethod nack! :trans-channel-protocol [chan message] (.nack! chan message))
 
-(defmethod nack! false [chan message] nil)
+;;nack for core.async is basically just returning the message onto the chan
+(defmethod nack! :core-async [chan message] (async/put! chan message))
+
+(defmethod nack! :default [chan message] nil)
 
 (defmulti distributed?
           (fn [ch] (class ch)))
@@ -122,6 +128,44 @@
   [ch]
   ch)
 
+;;(def subs_ch (async/chan 256))
+;;(channel/bind-chan (get-in @system/systems-state [:core :system :jobs-cmd-exchange]) subs_ch "123")
+;;(run-job! :core {:jobdef-name "suspend-test" :id "123"} false)
+;;(command->job :core "123" "suspend")
+;;(get-in @system/systems-state [:core :system :job-state])
+
+(defrecord Exchange [chan exchange routing-fn]
+  WritePort
+  (put! [this val handler]
+    (if handler  (.put! chan val handler) (.put! chan val)))
+  ReadPort
+  (take! [this handler]
+    (.take! chan handler))
+  component/Lifecycle
+  (start [this]
+    (log/info "Creating Pub for internal Exchange channel with routing fn " routing-fn)
+    (if exchange
+      this
+      (assoc this :exchange (async/pub chan routing-fn))))
+  (stop [this]
+    (async/close! chan)
+    (dissoc this :exchange)))
+
+(defmulti bind-chan "Binds (subscribes) the provided channel to the topic exchange using the given routing key. Has to return the bound channel."
+          (fn [exchange chan routing-key] (class chan)))
+
+(defmulti unbind-chan "Unbinds (unsubscribes) provided channel from the topic exchange."
+          (fn [exchange chan routing-key] (class chan)))
+
+(defmethod bind-chan clojure.core.async.impl.channels.ManyToManyChannel
+  [exchange chan routing-key]
+  (async/sub (:exchange exchange) routing-key chan)
+  chan)
+
+(defmethod unbind-chan clojure.core.async.impl.channels.ManyToManyChannel
+  [exchange chan routing-key]
+  (async/unsub (:exchange exchange) routing-key chan))
+
 (defrecord ExchangeSubsProcessor [processing-fn subs-ch stop-chan]
   component/Lifecycle
   (start [this]
@@ -149,3 +193,54 @@
     (assoc this :stop-chan nil)))
 
 (defrecord SerializedVar [symbol]) ;; TODO add node-id?
+
+
+(nippy/extend-freeze clojure.lang.Var :clojure.core/var
+                     [x data-output]
+                     (.writeUTF data-output (str x)))
+
+(nippy/extend-thaw :clojure.core/var
+                   [data-input]
+                   (->SerializedVar (.readUTF data-input)))
+
+(nippy/extend-freeze clojure.core.async.impl.channels.ManyToManyChannel :core-async-chan
+                     [x data-output]
+                     nil)
+
+(nippy/extend-thaw :core-async-chan
+                   [data-input]
+                   :core-async-chan)
+;;FIXME cast this into normal Exception upstream
+(nippy/extend-freeze pl.joegreen.lambdaFromString.LambdaCreationException :lambda-creation-exception
+                     [x data-output]
+                     (.writeUTF data-output (.getMessage x)))
+
+(nippy/extend-thaw :lambda-creation-exception
+                   [data-input]
+                   (java.lang.Exception. (.readUTF data-input)))
+
+
+(nippy/set-freeze-fallback!
+  (fn [data-output x]
+    (let [s (str x)
+          ba (.getBytes s "UTF-8")
+          len (alength ba)]
+      (.writeByte data-output (byte 13))
+      (.writeInt data-output (int len))
+      (.write data-output ba 0 len))))
+
+;;interesting bug:
+;;throw+  applied to returned clj-http.headers/->HeaderMap cannot be serialized
+#_(-> (try (slingshot.slingshot/throw+ (get resp :headers) "status %s" (:status %))
+           (catch Exception e
+             e))
+      nippy/freeze)
+
+#_(def wfn (.createLambda (LambdaFactory/get)
+                          "p -> {Integer b = (Integer) p.valAt(\"a\");
+                          b++;
+                          return p.assoc(\"b\", b);}"
+                          "Function< clojure.lang.PersistentArrayMap,  clojure.lang.IPersistentMap>"))
+;;=> #'titanoboa.server/wfn
+;;(.apply wfn {"a" (int 0)})
+;;=> {"a" 0, "b" 1}
