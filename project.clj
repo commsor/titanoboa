@@ -65,7 +65,7 @@
   :libdir-path "lib"
   :main titanoboa.server ;;titanoboa.system
   :aot [titanoboa.server]
-  :clean-targets ^{:protect false} [:target-path]
+  :clean-targets ^{:protect false} [:target-path :libdir-path]
 
   :source-paths ["src/cljc" "src/clj" "src/script"]
   :aliases {"package" ["do" "clean," "jar," "libdir"]})
