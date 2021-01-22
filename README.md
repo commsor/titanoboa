@@ -2,7 +2,7 @@
 [![Join the chat at https://github.com/mikub/titanoboa/discussions](https://img.shields.io/badge/chat-github%20discussions-green.svg?logo=google-chat)](https://github.com/mikub/titanoboa/discussions)
 [![Demo](https://img.shields.io/badge/view-demo-green.svg)](https://www.titanoboa.io/demo.html)
 [![Free Hosted Instances](https://img.shields.io/badge/start-a%20free%20hosted%20instance%20with%20one%20click-orange.svg?logo=serverless)](https://cloud.titanoboa.io)
-[![Download](https://img.shields.io/badge/download-0.9.0-blue.svg)](https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_gui.zip)
+[![Download](https://img.shields.io/badge/download-0.9.1-blue.svg)](https://github.com/mikub/titanoboa/releases/download/0.9.1/titanoboa-0.9.1_gui.zip)
 [![Docker Pulls](https://img.shields.io/docker/pulls/titanoboa/titanoboa.svg)](https://hub.docker.com/r/titanoboa/titanoboa/)
  <a href="https://twitter.com/intent/follow?screen_name=new_crobuzon">
         <img src="https://img.shields.io/twitter/follow/new_crobuzon?style=social&logo=twitter"
@@ -77,19 +77,19 @@ You can run it as follows:
 **By the way, you don't need to install anything as you can just start a free hosted instance in your browser with one click! Just head to https://cloud.titanoboa.io**
 
 But if you want, install away! We suggest giving titanoboa's GUI a try as well since it is the best starting point!
-Download titanoboa's distribution including its GUI from https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_gui.zip 
+Download titanoboa's distribution including its GUI from https://github.com/mikub/titanoboa/releases/download/0.9.1/titanoboa-0.9.1_gui.zip 
 
-    curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_gui.zip
+    curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.1/titanoboa-0.9.1_gui.zip
 
 **Note**: _The GUI is now also free for commercial use. Yay!_
 
 __Note__: _If you are intending on running titanoboa server on java 8 JRE, download a distribution for JRE instead:_
 
-    curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_jre_gui.zip
+    curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.1/titanoboa-0.9.1_jre_gui.zip
 
 Unzip the file:
     
-    unzip titanoboa-0.9.0_gui.zip
+    unzip titanoboa-0.9.1_gui.zip
 
 then execute the start script:
     
@@ -106,13 +106,13 @@ Congratulations! You have just started your titanoboa server!
 You can go ahead and try to create a [sample workflow](https://github.com/mikub/titanoboa/wiki/Getting-Started-with-GUI) or [watch our demo](https://www.titanoboa.io/demo.html).
 
 ### Installing server without GUI
-Download the latest release from https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0.zip .
+Download the latest release from https://github.com/mikub/titanoboa/releases/download/0.9.1/titanoboa-0.9.1.zip .
 
-    curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0.zip
+    curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.1/titanoboa-0.9.1.zip
 
 __Note__: _If you are intending on running titanoboa server on java 8 JRE, download a distribution for JRE instead:_
 
-    curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.0/titanoboa-0.9.0_jre.zip
+    curl --remote-name https://github.com/mikub/titanoboa/releases/download/0.9.1/titanoboa-0.9.1_jre.zip
     
 And then follow the instructions above. By default the server will start on port 3000.
      
