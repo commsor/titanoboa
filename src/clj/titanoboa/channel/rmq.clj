@@ -192,7 +192,7 @@
   (langohr.queue/unbind (current-session) (:queue chan) (:exchange exchange) (str (or (:routing-key-prefix exchange) "") routing-key)))
 
 
-(defmethod ch/->distributed-ch com.rabbitmq.client.impl.recovery.AutorecoveringChannel
+(defmethod ch/->distributed-ch RMQSessionComponent
   [chan]
   "Enables distributed callback accross a different address space / servers.
   Creates (a serializable) channel (RMQPollingChannel) for a callback that will be bound to the provided (local) core.async channel.
