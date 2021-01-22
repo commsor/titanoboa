@@ -11,10 +11,6 @@
    (:require [titanoboa.exp :as exp]
              [titanoboa.system.local]))
 
-(def new-jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))
-(def jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))
-(def finished-jobs-chan (clojure.core.async/chan (clojure.core.async/dropping-buffer 1024)))
-
 (def steps (atom []))
 
 (defn fib-nth
