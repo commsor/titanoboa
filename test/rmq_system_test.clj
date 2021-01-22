@@ -50,6 +50,7 @@
                                      :properties {}}]})
 
 (deftest ^:rmq start-system!
+  (require 'titanoboa.channel.rmq)
   (require 'titanoboa.system.rabbitmq)
   (titanoboa.system/start-system! :core-rmq
                                   {:core-rmq {:system-def (resolve 'titanoboa.system.rabbitmq/distributed-core-system)
@@ -61,6 +62,7 @@
                                    :archival-queue "titanoboa-bus-archive"
                                    :heartbeat-exchange-name "heartbeat"
                                    :cmd-exchange-name "command"
+                                   :jobs-cmd-exchange-name "jobs-command"
                                    :enable-cluster false
                                    :node-id            "localhost"
                                    :eviction-interval  (* 1000 60 5)
