@@ -26,10 +26,6 @@
 (def ^:dynamic *cmd-exchange-ch* nil)
 (def ^:dynamic *server-config* nil)
 
-(defn preprocess [job]
-  (log/info "Entering preprocessing method...")
-  (print "preprocessing...."))
-
 ;;TODO move this to a separate namespace "commands" or similar?
 (defn instantiate-job! [{:keys [tracking-id id jobdef jobdef-name revision properties files new-jobs-ch state-agent job-folder defs-atom mq-pool callback-ch jobs-cmd-exchange] :as config}]
   (let [id (or id (str (java.util.UUID/randomUUID)))
@@ -763,11 +759,11 @@ Before the deletion the queue is checked for potential job thread (in a state :a
                                         (assoc :step-state (if (or (= :error (:state job-thread)) (= :error (:state main-thread-job))) :error (:step-state main-thread-job)))
                                         (add->history {:message (str "Merged thread with stack " (:thread-stack job-thread) " into main thread." )}))
                                     (conj ack-fns-vec (fn []
-                                                        (log/info "Acking message from thread [" (:thread-stack job-thread) "] and deleting its chan " p)
+                                                        (log/debug "Acking message from thread [" (:thread-stack job-thread) "] and deleting its chan " p)
                                                         (channel/ack! p job-thread)
                                                         (channel/delete-mq-chan p)))
                                     (conj nack-fns-vec (fn []
-                                                        (log/info "Nacking message from thread [" (:thread-stack job-thread) "] since a suspend command was received in the middle of join, the merge is being rolled back...")
+                                                        (log/debug "Nacking message from thread [" (:thread-stack job-thread) "] since a suspend command was received in the middle of join, the merge is being rolled back...")
                                                         (channel/nack! p job-thread)))
                                     (vec (remove #(= % p) callback-chans))))))
       {:main-thread-job main-thread-job :ack-fns-vec ack-fns-vec :nack-fns-vec nack-fns-vec}))))
@@ -806,7 +802,7 @@ Before the deletion the queue is checked for potential job thread (in a state :a
                                (dispatch4join! job)
                                (mapv #(%) ack-fns-vec)
                                (when commands-ch
-                                 (log/info "Deleting/closing command channel for job..." jobid)
+                                 (log/debug "Deleting/closing command channel for job..." jobid)
                                  (channel/unbind-chan jobs-cmd-exchange commands-ch (or parent-jobid jobid))
                                  (channel/delete-mq-chan commands-ch))
                                (update-cache-fn jobid job true))
@@ -815,7 +811,7 @@ Before the deletion the queue is checked for potential job thread (in a state :a
       (empty? thread-stack) (do
                               (>!! finished-ch job)
                               (when commands-ch
-                                (log/info "Deleting/closing command channel for job..." jobid)
+                                (log/debug "Deleting/closing command channel for job..." jobid)
                                 (channel/unbind-chan jobs-cmd-exchange commands-ch (or parent-jobid jobid))
                                 (channel/delete-mq-chan commands-ch))
                               (if-not commit-callback-ch
@@ -914,8 +910,9 @@ Before the deletion the queue is checked for potential job thread (in a state :a
                                   (catch Exception e
                                     (log/fatal e "Worker thread " node-id "(" worker-id") encountered error!
                                     Since the whole worker system may be in unstable state, it will be stopped now and a new one will " (when-not restart-workers-on-error "NOT") " be started.")
-                                    (when restart-workers-on-error (thread (system/stop-worker! sys-key worker-id)
-                                                                           (system/start-workers! sys-key (:systems-catalogue server-config) 1)))))))))
+                                    (if restart-workers-on-error (thread (system/stop-worker! sys-key worker-id)
+                                                                         (system/start-workers! sys-key (:systems-catalogue server-config) 1))
+                                                                 (thread (system/stop-worker! sys-key worker-id)))))))))
 
 
 (defrecord JobWorker [stop-chan in-jobs-ch new-jobs-ch out-jobs-ch finished-ch suspended-ch state-agent mq-session node-id sys-key worker-id cmd-exchange-ch jobs-cmd-exchange
