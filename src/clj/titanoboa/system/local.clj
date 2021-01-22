@@ -14,10 +14,9 @@
             [titanoboa.actions :as actions]
             [titanoboa.processor :as processor]
             [titanoboa.database :as db]
-            [titanoboa.cache :as cache]
-            [titanoboa.repo :as repo]))
+            [titanoboa.cache :as cache]))
 
-(defn local-core-system [{:keys [node-id jobs-repo-path job-folder-path  new-jobs-chan jobs-chan finished-jobs-chan eviction-interval eviction-age] :as config}]
+(defn local-core-system [{:keys [node-id jobs-repo-path job-folder-path new-jobs-chan jobs-chan finished-jobs-chan eviction-interval eviction-age] :as config}]
   (component/system-map
     :server-config config
     :node-id node-id
@@ -32,15 +31,20 @@
                                    {:jd-atom :job-defs})
     :job-folder-root job-folder-path
     :action-chan (chan 32)
+    :pub-chan (chan 256)
     :action-processor (component/using
                         (actions/map->ActionProcessorComponent {:threadpool-size 4})
                         {:action-requests-ch :action-chan})
+    :jobs-cmd-exchange (component/using
+                         (channel/map->Exchange {:routing-fn :jobid})
+                         {:chan :pub-chan})
     :new-jobs-chan new-jobs-chan
     :jobs-chan jobs-chan
+    :suspended-jobs-chan finished-jobs-chan
     :finished-jobs-chan finished-jobs-chan))
 
 
-(defn local-worker-system [config]
+(defn local-worker-system [{:keys [dont-log-properties trim-logged-properties properties-trim-size jobs-cmd-exchange jobs-cmd-exchange-name node-id sys-key worker-id] :as config}]
   (component/system-map
     :server-config (:server-config config) ;;TODO passing on configuration onto workers so as they can instantiate new systems - review whether more elegant approaches exist
     :node-id (:node-id config)
@@ -49,14 +53,17 @@
     :new-jobs-chan (:new-jobs-chan config)
     :jobs-chan (:jobs-chan config)
     :finished-jobs-chan (:finished-jobs-chan config)
+    :suspended-jobs-chan (:suspended-jobs-chan config)
     :job-state (:job-state config)
+    :worker-id (:worker-id config)
     :job-worker (component/using
-                  (processor/map->JobWorker {})
+                  (processor/map->JobWorker {:jobs-cmd-exchange jobs-cmd-exchange :sys-key sys-key :worker-id worker-id})
                   {:node-id :node-id
                    :in-jobs-ch :jobs-chan
                    :new-jobs-ch :new-jobs-chan
                    :out-jobs-ch :jobs-chan
                    :finished-ch :finished-jobs-chan
+                   :suspended-ch :suspended-jobs-chan
                    :state-agent :job-state
                    :eviction-agent :eviction-list
                    :server-config :server-config})))

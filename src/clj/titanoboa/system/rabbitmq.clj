@@ -18,39 +18,35 @@
             [titanoboa.database :as db]
             [titanoboa.cache :as cache]))
 
-(defn distributed-core-system [config]
+(defn distributed-core-system [{:keys [node-id jobs-repo-path job-folder-path eviction-interval eviction-age cmd-exchange-name jobs-cmd-exchange-name mq-host mq-port mq-username mq-password mq-vhost] :as config}]
   (component/system-map
     :server-config config
     :node-id (:node-id config)
     :job-state (agent {})
     :eviction-list (agent {})
-    :eviction-worker (component/using (cache/map->CacheEvictionComponent {:eviction-interval 10000
-                                                                          :eviction-age 15000})
+    :eviction-worker (component/using (cache/map->CacheEvictionComponent {:eviction-interval (or eviction-interval 10000)
+                                                                          :eviction-age (or eviction-age  15000)})
                                       {:eviction-agent :eviction-list
                                        :job-cache-agent :job-state})
-    :job-defs (atom (titanoboa.repo/get-all-revisions! (:jobs-repo-path config)))
-    :job-folder-root (:job-folder-path config)
+    :job-defs (atom (titanoboa.repo/get-all-revisions! jobs-repo-path))
+    :job-folder-root job-folder-path
     :action-chan (chan 32)
     :action-processor (component/using
                         (actions/map->ActionProcessorComponent {:threadpool-size 8})
                         {:action-requests-ch :action-chan})
-    :mq-connection (channel/->RMQConnectionComponent {:host "localhost"
-                                                      :port 5672
-                                                      :username "guest"
-                                                      :password "guest"
-                                                      :vhost "/"
+    :mq-connection (channel/->RMQConnectionComponent {:host (or mq-host "localhost")
+                                                      :port (or mq-port 5672)
+                                                      :username (or mq-username "guest")
+                                                      :password (or mq-password "guest")
+                                                      :vhost (or mq-vhost "/")
                                                       :connection-name "titanoboa-connection"}
                                                      nil)
     :mq-session-pool (component/using
                        (channel/map->RMQSessionPoolComponent {:pool-size 6})
                        {:connection-comp :mq-connection})
-    :mq-worker-connection (channel/->RMQConnectionComponent {:host "localhost"
-                                                      :port 5672
-                                                      :username "guest"
-                                                      :password "guest"
-                                                      :vhost "/"
-                                                      :connection-name "titanoboa-worker-connection"}
-                                                            nil)
+    :jobs-cmd-exchange-name jobs-cmd-exchange-name
+    :jobs-cmd-exchange (component/using (channel/map->RMQExchange {:exchange jobs-cmd-exchange-name :type "topic" :routing-key-prefix "job.id." :routing-key :jobid})
+                                        {:sessionpool-comp :mq-session-pool})
     :new-jobs-queue (:new-jobs-queue config)
     :jobs-queue (:jobs-queue config)
     :archival-queue (:archival-queue config)
@@ -65,21 +61,22 @@
                                         :queue-name :archival-queue})
     :new-jobs-chan (channel/rmq-chan (:new-jobs-queue config) false 20)
     :jobs-chan (channel/rmq-chan (:jobs-queue config) false 20)
+    :suspended-jobs-chan (channel/rmq-chan (:archival-queue config) false 20)
     :finished-jobs-chan (channel/rmq-chan (:archival-queue config) false 20)))
 
-(defn archival-system [config]
+(defn archival-system [{:keys [mq-host mq-port mq-username mq-password mq-vhost] :as config}]
   (component/system-map
     :archival-queue (:archival-queue config)
     :archive-q-construct (component/using (channel/map->QueueComponent {})
                                           {:session-comp :mq-session
                                            :queue-name :archival-queue})
     :finished-jobs-chan (channel/rmq-chan (:archival-queue config) false 20)
-    :mq-connection (channel/->RMQConnectionComponent {:host "localhost"
-                                                      :port 5672
-                                                      :username "guest"
-                                                      :password "guest"
-                                                      :vhost "/"
-                                                      :connection-name "archival-connection"}
+    :mq-connection (channel/->RMQConnectionComponent {:host              (or mq-host "localhost")
+                                                      :port              (or mq-port 5672)
+                                                      :username          (or mq-username "guest")
+                                                      :password          (or mq-password "guest")
+                                                      :vhost             (or mq-vhost "/")
+                                                      :connection-name   "archival-connection"}
                                                      nil)
     :mq-session (component/using
                            (channel/map->RMQSessionComponent {})
@@ -100,18 +97,30 @@
                                       :finished-jobs-chan :finished-jobs-chan
                                       :_q-construct :archive-q-construct})))
 
-(defn distributed-worker-system [config]
+(defn distributed-worker-system [{:keys [mq-host mq-port mq-username mq-password mq-vhost dont-log-properties trim-logged-properties properties-trim-size jobs-cmd-exchange jobs-cmd-exchange-name node-id sys-key worker-id restart-workers-on-error] :as config}]
   (component/system-map
     :server-config (:server-config config) ;;TODO passing on configuration onto workers so as they can instantiate new systems - review whether more elegant approaches exist
-    :node-id (:node-id config)
+    :node-id node-id
+    :dont-log-properties (boolean dont-log-properties)
+    :trim-logged-properties (boolean trim-logged-properties)
+    :properties-trim-size (or properties-trim-size 100)
     :job-state (:job-state config)
-    :mq-connection (:mq-worker-connection config)
+    :mq-connection (channel/->RMQConnectionComponent {:host (or mq-host "localhost")
+                                                             :port (or mq-port 5672)
+                                                             :username (or mq-username "guest")
+                                                             :password (or mq-password "guest")
+                                                             :vhost (or mq-vhost "/")
+                                                             :connection-name (str "titanoboa-worker-" node-id "-" sys-key "(" worker-id ")")}
+                                                            nil)
     :mq-session (component/using
                   (channel/map->RMQSessionComponent {})
                   {:connection-comp  :mq-connection})
     :new-jobs-chan (:new-jobs-chan config)
     :jobs-chan (:jobs-chan config)
     :finished-jobs-chan (:finished-jobs-chan config)
+    :suspended-jobs-chan (:suspended-jobs-chan config)
+    :jobs-cmd-exchange (component/using (channel/map->RMQExchange {:exchange jobs-cmd-exchange-name :type "topic" :routing-key-prefix "job.id." :routing-key :jobid})
+                                        {:session-comp :mq-session})
     :eviction-list (:eviction-list config)
     :job-worker (component/using
                   (processor/map->JobWorker {})
@@ -123,4 +132,9 @@
                    :state-agent :job-state
                    :eviction-agent :eviction-list
                    :mq-session :mq-session
-                   :server-config :server-config})))
+                   :suspended-ch :suspended-jobs-chan
+                   :jobs-cmd-exchange :jobs-cmd-exchange
+                   :server-config :server-config
+                   :dont-log-properties :dont-log-properties
+                   :trim-logged-properties :trim-logged-properties
+                   :properties-trim-size :properties-trim-size})))
