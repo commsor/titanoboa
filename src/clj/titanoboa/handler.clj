@@ -93,14 +93,14 @@
            ;;:start (system/start-system! (util/tokey system) systems-catalogue config)
            :start (do (system/start-system-bundle! (util/s->key (http-util/url-decode system)) systems-catalogue config (int (or wcount 0)) scope) {:status 200})
            :restart {:status 200 :body (system/restart-system! (util/s->key (http-util/url-decode system)) systems-catalogue config)})})
-      (POST "/workers" [] {:body (system/start-workers! (util/s->key (http-util/url-decode system)) systems-catalogue 1)});; TODO add PATCH to stop/start workers?
+      (POST "/workers" [] {:status 201 :body (system/start-workers! (util/s->key (http-util/url-decode system)) systems-catalogue 1)})
       (DELETE "/workers/:worker-id" [worker-id]
             {:body (system/stop-worker! (util/s->key (http-util/url-decode system)) (Long/parseLong worker-id))})
       (POST "/jobs" [sync & conf] (do (log/debug "Recieved request to start a job on system [" (http-util/url-decode system) "] with config ["conf"]")
                                {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system)) conf sync)}))
       (PATCH "/jobs/:jobid" [jobid command]
         (processor/command->job (util/s->key (http-util/url-decode system)) jobid command)
-        {:status 201 :body {:message "The command signal sent to the jobs command queue"}})
+        {:status 200 :body {:message "The command signal sent to the jobs command queue"}})
       (POST "/jobs/:jobdef-name" [jobdef-name & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
                                       {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system)) {:jobdef-name jobdef-name :properties properties} false)}))
       (POST "/jobs/:jobdef-name/:revision" [jobdef-name revision & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
