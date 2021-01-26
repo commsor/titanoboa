@@ -4,9 +4,6 @@
 [![Free Hosted Instances](https://img.shields.io/badge/start-a%20free%20hosted%20instance%20with%20one%20click-orange.svg?logo=serverless)](https://cloud.titanoboa.io)
 [![Download](https://img.shields.io/badge/download-0.9.1-blue.svg)](https://github.com/mikub/titanoboa/releases/download/0.9.1/titanoboa-0.9.1_gui.zip)
 [![Docker Pulls](https://img.shields.io/docker/pulls/titanoboa/titanoboa.svg)](https://hub.docker.com/r/titanoboa/titanoboa/)
- <a href="https://twitter.com/intent/follow?screen_name=new_crobuzon">
-        <img src="https://img.shields.io/twitter/follow/new_crobuzon?style=social&logo=twitter"
-            alt="follow on Twitter"></a>
 
 ## Synopsis
 Titanoboa makes complex workflows easy. 
