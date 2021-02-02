@@ -32,6 +32,7 @@
             [cognitect.transit :as transit]
             [clojure.tools.logging :as log]
             [titanoboa.auth :as auth]
+            [titanoboa.cluster :as cluster]
             [titanoboa.database :as db]
             [ring.util.response :as resp]
             [compliment.core :as compliment])
@@ -106,9 +107,13 @@
       (POST "/jobs/:jobdef-name/:revision" [jobdef-name revision & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
                                                                 {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system)) {:jobdef-name jobdef-name :revision revision :properties properties} false)})))
     (context "/cluster" []
-      (GET "/" []  {:status 404 :body {:message "Clustering is disabled"}})
-      (GET "/id" [] {:status 404 :body {:message "Clustering is disabled"}})
-      (GET "/jobs" [] {:body (api/get-jobs-states)})
+      (GET "/" [] (if cluster/cluster-enabled {:status 200 :body {}} {:status 404 :body {:message "Clustering is disabled"}}))
+      (GET "/id" [] (if cluster/cluster-enabled {:status 200 :body cluster/node-id} {:status 404 :body {:message "Clustering is disabled"}}))
+      (GET "/jobs" [] (if cluster/cluster-enabled
+                        (do
+                          (when-not cluster/*cluster-aware* (cluster/start-state-subs!))
+                          {:body (cluster/merge-job-states @cluster/cluster-state-jobs (api/get-jobs-states))})
+                        {:body (api/get-jobs-states) }))
       (GET "/dependencies" [] (if (deps/get-deps-path-property)
                                 {:status 200 :body {:dependencies (deps/get-deps-file-content)}}
                                 {:status 404 :body {:result "dependencies path was not set"}}))
@@ -116,9 +121,13 @@
                                                          {:status 200 :body {:result :ok}}
                                                          {:status 409 :body {:result :stale}})))
     (context "/cluster/nodes" []
-      (GET "/" [] {:body
+      (GET "/" [] (if cluster/cluster-enabled
+                    (do
+                      (when-not cluster/*cluster-aware* (cluster/start-state-subs!))
+                      {:body (cluster/state-of-all-nodes (merge-with merge (into {} (system/live-systems)) systems-catalogue))})
+                    {:body
                      {node-id
-                       {:systems (merge-with merge (into {} (system/live-systems)) systems-catalogue) :last-hearbeat-age 0 :source true :state :live}}}))
+                      (merge (cluster/get-sys-load) {:systems (merge-with merge (into {} (system/live-systems)) systems-catalogue) :last-hearbeat-age 0 :source true :state :live})}})))
     (context "/archive" []
       (GET "/jobs" [limit :<< as-int offset :<< as-int order-by order] (do (log/info "Received request to list jobs, limit is ["limit"] order is " order)
                                                                   (if archive-ds-ks
@@ -131,7 +140,7 @@
           ("resume" :resume) (do
            (processor/resume-jobs! system jobid (db/get-jobs (get-in @system/systems-state archive-ds-ks) jobid))
            (db/delete-jobs (get-in @system/systems-state archive-ds-ks) jobid)
-           {:status 201 :body {:message "Job was resumed."}}) ;;TODO potential race condition - to minimize risk, delete first, then enqueue and then commit the DB transaction.
+           {:status 200 :body {:message "Job was resumed."}}) ;;TODO potential race condition - to minimize risk, delete first, then enqueue and then commit the DB transaction.
           {:status 405 :body {:message "Unsupported command"}})))))
 
 (defn get-public-routes [{:keys [auth-ds-ks auth-conf auth?] :as config}]
@@ -202,6 +211,68 @@
       (.read rdr buf)
       buf)))
 
+(defn proxy->node [req host port uri] ;;& [http-opts]
+  (log/info "Forwarding request to node [" host "] port [" port "] uri [" uri "]")
+  (try
+  (let [response   (-> (merge req
+                                {:method (:request-method req)
+                                 :headers (dissoc (:headers req) "host" "content-length")
+                                 :server-name host
+                                 :server-port port
+                                 :uri uri
+                                 :body (if-let [len (get-in req [:headers "content-length"])]
+                                         (slurp-binary (:body req) (Integer/parseInt len)))
+                                 :follow-redirects true
+                                 :throw-exceptions false
+                                 :as :stream})
+                         request
+                         prepare-cookies)]
+    (log/info "Retrieved response [" response "]")
+    response)
+  (catch Exception e
+    (log/error "Cant proxy request: " e)
+    {:status 500})))
+
+(defn qualifies4proxy? [uri-vec]
+  "accepts vector of parsed (non-nil) URI paths and returns true if the URI qualifies for being proxied to anothe node in cluster.
+  In general all calls to URI informat of '/cluster/nodes/<host>:<port>/' will qualify - so
+  a call to this fn with params such as ['cluster' 'nodes' '<host>:<port>'] will return true."
+  (and (= (take 2 uri-vec) ["cluster" "nodes"])
+       (> (count uri-vec) 3)))
+
+(defn proxy2local? [target-node-id]
+  (= target-node-id cluster/node-id))
+
+(defn parse-uri [uri-vec]
+  "takes vector of parsed (non-nil) URI paths in a format of ['cluster' 'nodes' '<host>:<port>' &[target uri paths]]
+  and returns a vecot of 3 in a format of [host port 'target uri string'].
+  E.g. ['cluster' 'nodes' 'localhost:3000' 'systems' ':core'] (that would correspond to an original URI '/cluster/nodes/localhost:3000/systems/:core')
+  will produce ['localhost' '3000' '/systems/:core']"
+  (let [node-url (get uri-vec 2)
+        [node-host node-port] (clojure.string/split node-url #":")]
+    (assert (and node-host node-port) "Trying to proxy an http(s) request to another node... URL of a node cannot be parsed (host:port format expected)!")
+    [node-host node-port (reduce (fn [val i] (str val "/" i)) "" (drop 3 uri-vec))]))
+
+(defn cluster-proxy-middleware [handler]
+  (fn [request]
+    (let [uri-v (filterv #(not= % "")
+                              (clojure.string/split (:uri request) #"/"))]
+      (if (qualifies4proxy? uri-v)
+        (let [[host port target-uri] (parse-uri uri-v)]
+          (log/info "Uri " (:uri request) " qualifies for proxying...")
+          (if (proxy2local? (get uri-v 2))
+            (handler (assoc request :uri target-uri))
+            (proxy->node request host port target-uri)))
+        (handler request)))))
+
+
+#_(GET "/" [params] {:body {"dummy-job" {:state :finished}}})
+             #_(resources "/")
+             #_(not-found "Not Found")
+
+;;TRANSIT encoders/decoders
+;;TODO (an idea) convert all java HashMaps into clojure PersistentArrayMap? Also Arrays?
+;;TODO also could fall back on clojure.core/bean method
 (def transit-handlers-encode {titanoboa.exp.Expression exp/transit-write-handler
                               clojure.lang.Var (transit/write-handler (constantly "s") #(str %))
                               titanoboa.channel.SerializedVar (transit/write-handler (constantly "s") #(:symbol %))
@@ -235,5 +306,6 @@
                             :params-options {:transit-json
                                                 {:handlers transit-handlers-decode}}})
       wrap-params
-      (auth/wrap-auth-cookie "SoSecret12345678")))
+      (auth/wrap-auth-cookie "SoSecret12345678")
+      cluster-proxy-middleware))
 

@@ -16,12 +16,15 @@
             [titanoboa.database :as db]
             [titanoboa.cache :as cache]))
 
-(defn local-core-system [{:keys [node-id jobs-repo-path job-folder-path new-jobs-chan jobs-chan finished-jobs-chan eviction-interval eviction-age] :as config}]
+(defn local-core-system [{:keys [node-id jobs-repo-path job-folder-path new-jobs-chan jobs-chan finished-jobs-chan eviction-interval eviction-age dont-log-properties trim-logged-properties properties-trim-size] :as config}]
   (component/system-map
     :server-config config
     :node-id node-id
     :job-state (agent {})
     :eviction-list (agent {})
+    :dont-log-properties (boolean dont-log-properties)
+    :trim-logged-properties (boolean trim-logged-properties)
+    :properties-trim-size (or properties-trim-size 100)
     :eviction-worker (component/using (cache/map->CacheEvictionComponent {:eviction-interval (or eviction-interval (* 1000 60 15))
                                                                           :eviction-age (or eviction-age (* 1000 60 180))})
                                       {:eviction-agent :eviction-list
@@ -57,7 +60,8 @@
     :job-state (:job-state config)
     :worker-id (:worker-id config)
     :job-worker (component/using
-                  (processor/map->JobWorker {:jobs-cmd-exchange jobs-cmd-exchange :sys-key sys-key :worker-id worker-id})
+                  (processor/map->JobWorker {:jobs-cmd-exchange jobs-cmd-exchange :sys-key sys-key :worker-id worker-id
+                                             :dont-log-properties dont-log-properties :trim-logged-properties trim-logged-properties :properties-trim-size properties-trim-size})
                   {:node-id :node-id
                    :in-jobs-ch :jobs-chan
                    :new-jobs-ch :new-jobs-chan

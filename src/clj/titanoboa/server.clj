@@ -18,14 +18,16 @@
             [titanoboa.dependencies :as deps]
             [titanoboa.api :as api]
             [titanoboa.channel :as channel]
+            [titanoboa.cluster :as cluster]
             [titanoboa.database :as db]
             [titanoboa.system.jdbc :as system.jdbc]
             [titanoboa.auth :as auth]
+            [titanoboa.util :as util]
+            [titanoboa.exp :as exp]
             [clojure.edn :as edn]
             [com.stuartsierra.component :as component]
             [clojure.tools.logging :as log]
-            [me.raynes.fs :as fs]
-            [titanoboa.exp :as exp])
+            [me.raynes.fs :as fs])
   (:import [org.eclipse.jetty.server
             Server]
            [java.io File]))
@@ -84,7 +86,7 @@
 
 (defn get-default-config [& [host]]
   {:host (or host (System/getProperty "boa.server.host") (.getHostAddress (java.net.InetAddress/getLocalHost)))
-   :jetty {:port 3000
+   :jetty {:port (or (Long/parseLong (System/getProperty "boa.server.port")) 3000)
            :join? false}
    :steps-repo-path "steps-repo"
    :jobs-repo-path "repo"})
@@ -111,7 +113,7 @@
       (if-let [cp-config (io/resource "boa-server-config.clj")]
         (load-string (slurp cp-config))
         (throw (IllegalStateException. "Titanoboa server config file was not found. It should be either on classpath (as \"boa-server-config.clj\") or its path should be denoted by \"boa.server.config.path\" system property.")))))
-  (alter-var-root #'server-config #(merge (get-default-config host) %))
+  (alter-var-root #'server-config #(util/deep-merge (get-default-config host) %))
   (alter-var-root #'server-config assoc :node-id (get-node-id server-config))
   (alter-var-root #'server-config assoc :systems-catalogue (into {}
                                                                  (mapv (fn [[k v]]
@@ -127,7 +129,11 @@
   (log/info "Shutting down...")
   (.stop server)
   (deps/stop-deps-watch!)
-  (system/stop-all-systems!))
+  (system/stop-all-systems!)
+  (when (:enable-cluster server-config)
+    (cluster/stop-broadcast!)
+    (cluster/stop-state-subs!)
+    (cluster/stop-cmd-subs!)))
 
 (defn- shutdown-runtime![]
   (shutdown!)
@@ -146,6 +152,12 @@
       (init-job-folder!  (:job-folder-path server-config))
       (init-step-repo! (:steps-repo-path server-config))
       (system/run-systems-onstartup! (:systems-catalogue server-config) server-config)
+      (when (:enable-cluster server-config)
+        (cluster/init-cluster! server-config)
+        (cluster/start-broadcast!)
+        ;;TODO start only if :cluster-aware in server-config is configured to :on (and not to :auto)
+        #_(cluster/start-state-subs!)
+        #_(cluster/start-cmd-subs!))
       (log/info "Starting jetty on port " (get-in server-config [:jetty (if (get-in server-config [:jetty :ssl?]) :ssl-port :port)]))
       (alter-var-root #'server
                       (constantly (run-jetty (handler/get-ring-app server-config)

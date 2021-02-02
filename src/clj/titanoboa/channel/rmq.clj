@@ -159,6 +159,14 @@
   [chan]
   (langohr.queue/delete (current-session) (:queue chan)))
 
+(defrecord RMQExchangeBroadcast [exchange expiration headers]
+  WritePort
+  (put! [_ val _]
+    (atom (langohr.basic/publish (current-session)  exchange "" (nippy/freeze val) {:content-type "application/octet-stream" :type "titanoboa" :expiration expiration :headers headers})))
+  ReadPort
+  (take! [this handler]
+    (throw (UnsupportedOperationException. "Cannot consume messages directly from RMQ Fan Exchange! Use RMQExchangeSubscriber instead."))))
+
 ;;properties can contain {:keys [expiration headers] :as properties}
 (defrecord RMQExchange [exchange type routing-key routing-key-prefix session-comp sessionpool-comp properties]
   component/Lifecycle
@@ -192,7 +200,32 @@
   (langohr.queue/unbind (current-session) (:queue chan) (:exchange exchange) (str (or (:routing-key-prefix exchange) "") routing-key)))
 
 
-(defmethod ch/->distributed-ch RMQSessionComponent
+;;TODO use separate component for exchange construction - ExchangeComponent
+(defn rmq-broadcast [name expiration headers]
+  (langohr.exchange/declare (current-session) name "fanout" {:durable true})
+  (->RMQExchangeBroadcast name expiration headers))
+
+;;TODO should this work with core.async or not? Is it ever used for anything other then distributed "between-nodes" communication (e.g. trans-system com)? If not core.async does not need ot be supported, if yes it should be.
+;;TODO add support for Topic exchanges (will be used for job command queue - for suspending jobs)
+(defn subs->broadcast [exchange-name chan &[filter-out-fn]]
+  "Subscribes to specified topic(s)/exchange(s). All incoming messages are passed onto the specified async channel.
+  Arguments:
+  exchange-name - string or vector of strings
+  chan - core.async channel. It should be always a sliding or a dropping channel to handle traffic spikes and backpressure!"
+
+  (let [{:keys [queue]} (langohr.queue/declare (current-session) "" {:exclusive true :auto-delete true})]
+    (cond
+      (string? exchange-name) (langohr.queue/bind (current-session) queue exchange-name)
+      (vector? exchange-name) (for [n exchange-name] (langohr.queue/bind (current-session) queue n))
+      :else (throw (IllegalArgumentException. "Exchange name must be either string or a vector of strings!")))
+    (langohr.consumers/subscribe (current-session) queue
+                                 (fn [ch header payload]
+                                   (if-not (and filter-out-fn (filter-out-fn header))
+                                     (async/>!! chan (with-meta (nippy/thaw payload) header))))
+                                 {:auto-ack true :consumer-tag queue})
+    queue))
+
+(defmethod ch/->distributed-ch RMQSessionComponent ;;com.rabbitmq.client.impl.recovery.AutorecoveringChannel
   [chan]
   "Enables distributed callback accross a different address space / servers.
   Creates (a serializable) channel (RMQPollingChannel) for a callback that will be bound to the provided (local) core.async channel.
@@ -276,6 +309,50 @@
                           (println "thread 2 - Finished 2nd"))))))
 
 
+(defrecord SystemStateBroadcast [session-comp exchange-name node-id state-fn broadcast-interval msg-exipre thread-handle]
+  component/Lifecycle
+  (start [this]
+    (log/info "Starting SystemStateBroadcast...")
+    (if thread-handle
+      this
+      (let [heartbeat-ch (with-mq-session session-comp (rmq-broadcast "heartbeat" msg-exipre {"host" node-id}))
+            th (Thread. (fn[]
+                          (log/debug "Starting SystemStateBroadcast thread [" (.getName (Thread/currentThread)) "]. RMQ session is " session-comp)
+                          (loop []
+                            (with-mq-session session-comp
+                                             (try (log/debug "Sending system state broadcast...")
+                                                 (async/>!! heartbeat-ch {node-id (state-fn)})
+                                                 (Thread/sleep broadcast-interval)
+                                                 (catch Exception e
+                                                   (log/error e "Error sending system state broadcast..."))))
+                            (recur))))]
+        (.start th)
+        (assoc this
+          :thread-handle th))))
+  (stop [this]
+    (log/info "Stopping SystemStateBroadcast thread [" (.getName thread-handle) "]...")
+    (if thread-handle (.interrupt thread-handle))
+    (assoc this
+      :thread-handle nil)))
+
+(defrecord ExchangeSubscription [session-comp exchange-comp exchange-name subs-ch node-id queue]
+  component/Lifecycle
+  (start [this]
+    (let [exchange-name (or exchange-name (:exchange-name exchange-comp))]
+      (log/info "Starting ExchangeSubscription for exchange [" exchange-name "]...")
+      (if queue
+        this
+        (assoc this :exchange-name exchange-name
+                    :queue
+                    (with-mq-session session-comp
+                                     (subs->broadcast exchange-name subs-ch
+                                                      #(= (str (get (:headers %) "host")) node-id)))))));;TODO make filter-out fn configurable?
+  (stop [this]
+    (with-mq-session session-comp
+      (langohr.basic/cancel (current-session) queue)
+      (langohr.queue/unbind (current-session) queue exchange-name)
+      (langohr.queue/delete (current-session) queue)
+      (assoc this :queue nil))))
 
 (defrecord QueueComponent [session-comp sessionpool-comp queue-name]
   component/Lifecycle
@@ -293,3 +370,17 @@
   Cleanable
   (cleanup! [this]
     (langohr.queue/delete (current-session) queue-name)))
+
+(defrecord ExchangeComponent [session-comp sessionpool-comp exchange-name]
+  component/Lifecycle
+  (start [this]
+    (log/info "Creating exchange [" exchange-name "]... ")
+    (if session-comp
+      (with-mq-session session-comp
+                       (langohr.exchange/declare (current-session) exchange-name "fanout" {:durable true}))
+      (when sessionpool-comp
+        (with-mq-sessionpool (:pool sessionpool-comp)
+                             (langohr.exchange/declare (current-session) exchange-name "fanout" {:durable true}))))
+    this)
+  (stop [this]
+    this))

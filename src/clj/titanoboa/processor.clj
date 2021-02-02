@@ -26,8 +26,23 @@
 (def ^:dynamic *cmd-exchange-ch* nil)
 (def ^:dynamic *server-config* nil)
 
+(defn get-prop-trimming-fn [dont-log-properties trim-logged-properties properties-trim-size]
+  (if dont-log-properties
+    (fn [job]
+      (assoc job :properties {}))
+    (if (and trim-logged-properties properties-trim-size)
+      (fn [job]
+        (update job :properties (fn [p] (walk/postwalk #(cond
+                                                          (vector? %) (if (> (count %) properties-trim-size) (subvec % 0 properties-trim-size) %)
+                                                          (map? %) (if (> (count %) properties-trim-size) (into {} (take properties-trim-size %)) %)
+                                                          :else %)
+                                                       p))))
+      identity)))
+
+
 ;;TODO move this to a separate namespace "commands" or similar?
-(defn instantiate-job! [{:keys [tracking-id id jobdef jobdef-name revision properties files new-jobs-ch state-agent job-folder defs-atom mq-pool callback-ch jobs-cmd-exchange] :as config}]
+(defn instantiate-job! [{:keys [tracking-id id jobdef jobdef-name revision properties files new-jobs-ch state-agent eviction-agent dont-log-properties trim-logged-properties properties-trim-size
+                                job-folder defs-atom mq-pool callback-ch jobs-cmd-exchange] :as config}]
   (let [id (or id (str (java.util.UUID/randomUUID)))
         jobdir (java.io.File. job-folder id)
         _ (assert (or jobdef (and defs-atom jobdef-name)))
@@ -69,7 +84,8 @@
         (log/debug "Storing file " (name k))
         (store-file jobdir (name k) v)))
     ;;update ref with running jobs map
-    (send state-agent assoc id job)
+    (send state-agent assoc id ((get-prop-trimming-fn dont-log-properties trim-logged-properties properties-trim-size) job))
+    (send eviction-agent assoc id (java.util.Date.))
     (log/info "Submitting new job [" job "] into new jobs channel...")
     (channel/with-mq-sessionpool mq-pool
                                  (if (and suspendable? jobs-cmd-exchange)
@@ -102,11 +118,14 @@
   If the response channel is not provided, the function waits synchronously for the job to be instantiated and then returns the job id."
   ([system-key {:keys [jobdef jobdef-name revision properties files] :as conf} response-ch keep-open]
   (assert (system/is-running? system-key) "Cannot start a job in a system that is not running!")
-  (let [{:keys [action-chan new-jobs-chan job-state job-folder-root job-defs mq-session-pool jobs-cmd-exchange] :as system} (get-in @system/systems-state [system-key :system]) ;;FIXME fix this need to go backdoor to grab systems config - it should flow down from the top!!! This is likely caused by my use of actions and action pool - functions from processor make calls to fns in the same namespace via actions, this seems weird!!
+  (let [{:keys [action-chan new-jobs-chan job-state eviction-list dont-log-properties trim-logged-properties properties-trim-size
+                job-folder-root job-defs mq-session-pool jobs-cmd-exchange] :as system} (get-in @system/systems-state [system-key :system]) ;;FIXME fix this need to go backdoor to grab systems config - it should flow down from the top!!! This is likely caused by my use of actions and action pool - functions from processor make calls to fns in the same namespace via actions, this seems weird!!
         action-request {:action-fn titanoboa.processor/instantiate-job!
                         :data [(merge conf
                                       {:new-jobs-ch new-jobs-chan
                                        :state-agent job-state
+                                       :eviction-agent eviction-list
+                                       :dont-log-properties dont-log-properties :trim-logged-properties trim-logged-properties :properties-trim-size properties-trim-size
                                        :job-folder job-folder-root
                                        :defs-atom job-defs
                                        :mq-pool (:pool mq-session-pool)
@@ -125,9 +144,12 @@
   Returns the job id or the finished job if the sync flag is set to true."
   [system-key {:keys [jobdef jobdef-name revision properties files] :as conf} sync]
   (assert (system/is-running? system-key) "Cannot start a job in a system that is not running!")
-  (let [{:keys [new-jobs-chan job-state job-folder-root job-defs mq-session-pool jobs-cmd-exchange] :as system} (get-in @system/systems-state [system-key :system])
+  (let [{:keys [new-jobs-chan job-state eviction-list dont-log-properties trim-logged-properties properties-trim-size
+                job-folder-root job-defs mq-session-pool jobs-cmd-exchange] :as system} (get-in @system/systems-state [system-key :system])
         job-conf (merge conf {:new-jobs-ch new-jobs-chan
                               :state-agent job-state
+                              :eviction-agent eviction-list
+                              :dont-log-properties dont-log-properties :trim-logged-properties trim-logged-properties :properties-trim-size properties-trim-size
                               :job-folder job-folder-root
                               :defs-atom job-defs
                               :jobs-cmd-exchange jobs-cmd-exchange
@@ -581,24 +603,9 @@ Before the deletion the queue is checked for potential job thread (in a state :a
                        :duration (when finished? (- (.getTime step-end) (.getTime start))))]
     [commit-callback-ch job]))
 
-(defn get-prop-trimming-fn [dont-log-properties trim-logged-properties properties-trim-size]
-  (if dont-log-properties
-    (fn [job]
-      (assoc job :properties {}))
-    (if (and trim-logged-properties properties-trim-size)
-      (fn [job]
-        (update job :properties (fn [p] (walk/postwalk #(cond
-                                                          (vector? %) (if (> (count %) properties-trim-size) (subvec % 0 properties-trim-size) %)
-                                                          (map? %) (if (> (count %) properties-trim-size) (into {} (take properties-trim-size %)) %)
-                                                          :else %)
-                                                       p))))
-      identity)))
-
 ;;parallel threads: things to merge: history + properties
 ;;easy peasy: just add thread stack to every history record
 ;;things to merge in view:  current step + step status
-
-;;TODO just use callback-ch property on job? -> NO NEED for :thread-stack outside of the main thread?!?
 ;;support for parallel steps:
 #_{:parallel-threads [[:step-id {:main {:step-id dispatch-step
                                         :thread-id :main

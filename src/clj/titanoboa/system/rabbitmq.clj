@@ -18,7 +18,8 @@
             [titanoboa.database :as db]
             [titanoboa.cache :as cache]))
 
-(defn distributed-core-system [{:keys [node-id jobs-repo-path job-folder-path eviction-interval eviction-age cmd-exchange-name jobs-cmd-exchange-name mq-host mq-port mq-username mq-password mq-vhost] :as config}]
+(defn distributed-core-system [{:keys [node-id jobs-repo-path job-folder-path eviction-interval eviction-age cmd-exchange-name jobs-cmd-exchange-name mq-host mq-port mq-username mq-password mq-vhost
+                                       dont-log-properties trim-logged-properties properties-trim-size] :as config}]
   (component/system-map
     :server-config config
     :node-id (:node-id config)
@@ -28,7 +29,12 @@
                                                                           :eviction-age (or eviction-age  15000)})
                                       {:eviction-agent :eviction-list
                                        :job-cache-agent :job-state})
+    :dont-log-properties (boolean dont-log-properties)
+    :trim-logged-properties (boolean trim-logged-properties)
+    :properties-trim-size (or properties-trim-size 100)
     :job-defs (atom (titanoboa.repo/get-all-revisions! jobs-repo-path))
+    :repo-watcher (component/using (titanoboa.repo/map->RepoWatcherComponent {:folder-path jobs-repo-path})
+                                   {:jd-atom :job-defs})
     :job-folder-root job-folder-path
     :action-chan (chan 32)
     :action-processor (component/using
@@ -44,7 +50,10 @@
     :mq-session-pool (component/using
                        (channel/map->RMQSessionPoolComponent {:pool-size 6})
                        {:connection-comp :mq-connection})
+    :cmd-exchange-name cmd-exchange-name
     :jobs-cmd-exchange-name jobs-cmd-exchange-name
+    :cmd-exchange-chan (component/using (channel/->RMQExchangeBroadcast (:cmd-exchange-name config) "10000" {"host" (:node-id config)})
+                                   {})
     :jobs-cmd-exchange (component/using (channel/map->RMQExchange {:exchange jobs-cmd-exchange-name :type "topic" :routing-key-prefix "job.id." :routing-key :jobid})
                                         {:sessionpool-comp :mq-session-pool})
     :new-jobs-queue (:new-jobs-queue config)
@@ -97,13 +106,11 @@
                                       :finished-jobs-chan :finished-jobs-chan
                                       :_q-construct :archive-q-construct})))
 
-(defn distributed-worker-system [{:keys [mq-host mq-port mq-username mq-password mq-vhost dont-log-properties trim-logged-properties properties-trim-size jobs-cmd-exchange jobs-cmd-exchange-name node-id sys-key worker-id restart-workers-on-error] :as config}]
+(defn distributed-worker-system [{:keys [mq-host mq-port mq-username mq-password mq-vhost dont-log-properties trim-logged-properties  eviction-list
+                                         properties-trim-size jobs-cmd-exchange jobs-cmd-exchange-name node-id sys-key worker-id restart-workers-on-error] :as config}]
   (component/system-map
     :server-config (:server-config config) ;;TODO passing on configuration onto workers so as they can instantiate new systems - review whether more elegant approaches exist
     :node-id node-id
-    :dont-log-properties (boolean dont-log-properties)
-    :trim-logged-properties (boolean trim-logged-properties)
-    :properties-trim-size (or properties-trim-size 100)
     :job-state (:job-state config)
     :mq-connection (channel/->RMQConnectionComponent {:host (or mq-host "localhost")
                                                              :port (or mq-port 5672)
@@ -121,20 +128,64 @@
     :suspended-jobs-chan (:suspended-jobs-chan config)
     :jobs-cmd-exchange (component/using (channel/map->RMQExchange {:exchange jobs-cmd-exchange-name :type "topic" :routing-key-prefix "job.id." :routing-key :jobid})
                                         {:session-comp :mq-session})
-    :eviction-list (:eviction-list config)
+    :cmd-exchange-chan (:cmd-exchange-chan config)
     :job-worker (component/using
-                  (processor/map->JobWorker {})
+                  (processor/map->JobWorker {:eviction-agent eviction-list :jobs-cmd-exchange jobs-cmd-exchange :sys-key sys-key :worker-id worker-id :restart-workers-on-error restart-workers-on-error
+                                             :dont-log-properties dont-log-properties :trim-logged-properties trim-logged-properties :properties-trim-size properties-trim-size})
                   {:node-id :node-id
                    :in-jobs-ch :jobs-chan
                    :new-jobs-ch :new-jobs-chan
                    :out-jobs-ch :jobs-chan
                    :finished-ch :finished-jobs-chan
                    :state-agent :job-state
-                   :eviction-agent :eviction-list
                    :mq-session :mq-session
+                   :cmd-exchange-ch :cmd-exchange-chan ;;TODO passing on cmd chan onto workers so as they can instantiate new systems - review whether more elegant approaches exist
                    :suspended-ch :suspended-jobs-chan
                    :jobs-cmd-exchange :jobs-cmd-exchange
-                   :server-config :server-config
-                   :dont-log-properties :dont-log-properties
-                   :trim-logged-properties :trim-logged-properties
-                   :properties-trim-size :properties-trim-size})))
+                   :server-config :server-config})))
+
+(defn cluster-broadcast-system [{:keys [state-fn node-id mq-host mq-port mq-username mq-password mq-vhost heartbeat-exchange-name] :as config}]
+  (component/system-map
+    :mq-connection (channel/->RMQConnectionComponent {:host (or mq-host "localhost")
+                                                      :port (or mq-port 5672)
+                                                      :username (or mq-username "guest")
+                                                      :password (or mq-password "guest")
+                                                      :vhost (or mq-vhost "/")
+                                                      :connection-name "titanoboa-cluster-broadcast"}
+                                                     nil)
+    :mq-session (component/using
+                  (channel/map->RMQSessionComponent {})
+                  {:connection-comp  :mq-connection})
+    :broadcast (component/using
+                 (channel/map->SystemStateBroadcast {:exchange-name (or heartbeat-exchange-name "heartbeat")
+                                                   :node-id node-id ;;(.getHostAddress (java.net.InetAddress/getLocalHost))
+                                                   :state-fn state-fn
+                                                   :broadcast-interval 5000
+                                                   :msg-exipre "5000"})
+                 {:session-comp :mq-session})))
+
+(defn cluster-subscription-system [{:keys [processing-fn node-id exchange-name mq-host mq-port mq-username mq-password mq-vhost] :as config}]
+  (component/system-map
+    :mq-connection (channel/->RMQConnectionComponent {:host (or mq-host "localhost")
+                                                      :port (or mq-port 5672)
+                                                      :username (or mq-username "guest")
+                                                      :password (or mq-password "guest")
+                                                      :vhost (or mq-vhost "/")
+                                                      :connection-name "titanoboa-cluster-subscription"}
+                                                     nil)
+    :mq-session (component/using
+                  (channel/map->RMQSessionComponent {})
+                  {:connection-comp :mq-connection})
+    :subs-ch (async/chan (async/sliding-buffer 64))
+    :exchange-name exchange-name
+    :exchange (component/using (channel/map->ExchangeComponent {})
+                                         {:session-comp :mq-session
+                                          :exchange-name :exchange-name})
+    :subscription (component/using
+                    (channel/map->ExchangeSubscription {:node-id node-id})
+                    {:session-comp :mq-session
+                     :exchange-comp :exchange
+                     :subs-ch :subs-ch})
+    :processor (component/using
+                 (map->ExchangeSubsProcessor {:processing-fn processing-fn})
+                 {:subs-ch :subs-ch})))

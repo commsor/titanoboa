@@ -47,6 +47,11 @@
   "Takes array of maps (of presumably same structure and converts them into map of maps using the provided key"
   (reduce #(merge %1 {(key %2) %2}) {} maps-array))
 
+(defn deep-merge [a & maps]
+  (if (map? a)
+    (apply merge-with deep-merge a maps)
+    (apply merge-with deep-merge maps)))
+
 (defn readable-interval [i]
   (let [ms (mod i 1000)
         s (/ (- i ms) 1000)
