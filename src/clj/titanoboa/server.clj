@@ -86,7 +86,7 @@
 
 (defn get-default-config [& [host]]
   {:host (or host (System/getProperty "boa.server.host") (.getHostAddress (java.net.InetAddress/getLocalHost)))
-   :jetty {:port (or (Long/parseLong (System/getProperty "boa.server.port")) 3000)
+   :jetty {:port (if (System/getProperty "boa.server.port") (Long/parseLong (System/getProperty "boa.server.port")) 3000)
            :join? false}
    :steps-repo-path "steps-repo"
    :jobs-repo-path "repo"})
