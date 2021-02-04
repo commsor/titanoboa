@@ -25,8 +25,8 @@
     :node-id (:node-id config)
     :job-state (agent {})
     :eviction-list (agent {})
-    :eviction-worker (component/using (cache/map->CacheEvictionComponent {:eviction-interval (or eviction-interval 10000)
-                                                                          :eviction-age (or eviction-age  15000)})
+    :eviction-worker (component/using (cache/map->CacheEvictionComponent {:eviction-interval (or eviction-interval (* 30 1000))
+                                                                          :eviction-age (or eviction-age  (* 5 60 1000))})
                                       {:eviction-agent :eviction-list
                                        :job-cache-agent :job-state})
     :dont-log-properties (boolean dont-log-properties)

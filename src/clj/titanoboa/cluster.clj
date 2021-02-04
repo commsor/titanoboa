@@ -27,6 +27,7 @@
 ;; {"node-id" {:systems {:core {:state :running, :workers [0 1 2 3 4 5 6 7]}} :timestamp timestamp}}
 (def cluster-state-sys (atom {}))
 
+;;{:system {'job-id' job-map}}
 (def cluster-state-jobs (atom {}))
 
 (def cluster-broadcast nil)
@@ -34,6 +35,8 @@
 (def cluster-state-subscription nil)
 
 (def cluster-cmd-subscription nil)
+
+(def cluster-job-cleanup nil)
 
 (defn process-cluster-command [c]
   (eval c))
@@ -45,15 +48,16 @@
 
 (defn merge-job-states [state-a state-b]
   "Merges two system jobs states in a format of {:system {'job-id' job-map}}.
-  If two same job ids appear, the job with longer history log is assumed to be newer and s used to override the older one."
+  If two same job ids appear, the job with longer history log is assumed to be newer and is used to override the older one.
+  Also :heartbeat-age metadata are added to the job so as it can be evicted based on the its age."
   (merge-with (fn [sys1 sys2]
                 (merge-with (fn [job1 job2] ;;TODO also check for timestamp and/or steps count
                               (if (> (count (:history job1)) (count (:history job2)))
                                 (do
                                   (log/debug "Overriding job with step/next-step [" (:step job2) " / " (:next-step job2) "] with job with step/next-step [" (:step job1) " / " (:next-step job1) "]")
-                                  job1)
+                                  (with-meta job1 {:heartbeat-age (.getTime (java.util.Date.))}))
                                 (do (log/debug "Overriding job with step/next-step [" (:step job1) " / " (:next-step job1) "] with job with step/next-step [" (:step job2) " / " (:next-step job2) "]")
-                                    job2)))
+                                    (with-meta job2 {:heartbeat-age (.getTime (java.util.Date.))}))))
                             sys1 sys2))
               state-a state-b))
 
@@ -66,6 +70,38 @@
     (swap! cluster-state-sys assoc node-id node-properties)
     (swap! cluster-state-jobs merge-job-states jobs)))
 
+(defn evict-old-jobs [jobs-map eviction-age cur-t]
+  (->> jobs-map
+       (filter (fn [[k v]] (or (not (:heartbeat-age (meta v)))
+                               (< cur-t
+                                  (+ (:heartbeat-age (meta v)) eviction-age)))))
+       (into {})))
+
+
+;;TODO add also eviction for old nodes that are shut down
+(defrecord JobsCleanupComponent [thread-handle eviction-interval eviction-age]
+  component/Lifecycle
+  (start [this]
+    (log/info "Starting JobsCleanupComponent...")
+    (if thread-handle
+      this
+      (let [th (Thread. (fn[]
+                          (log/info "Starting JobsCleanupComponent thread [" (.getName (Thread/currentThread)) "].")
+                          (loop [t (java.util.Date.)]
+                            (log/debug "Preparing for cluster job cleanup, current jobs in :core are: " (mapv (fn [[k v]] (str "\n" k " " (- (.getTime t) (:heartbeat-age (meta v))))) (:core @cluster-state-jobs)))
+                            (swap! cluster-state-jobs util/update-in-* [*] evict-old-jobs eviction-age (.getTime t))
+                            (Thread/sleep eviction-interval)
+                            (recur (java.util.Date.))))
+                        (str "JobsCleanupComponent thread " (rand-int 9)))]
+        (.start th)
+        (assoc this
+          :thread-handle th))))
+  (stop [this]
+    (log/info "Stopping JobsCleanupComponent thread [" (.getName thread-handle) "]...")
+    (if thread-handle (.interrupt thread-handle))
+    (assoc this
+      :thread-handle nil)))
+
 (defn get-sys-load []
   {:system-cpu-load (.getSystemCpuLoad (java.lang.management.ManagementFactory/getOperatingSystemMXBean))
    :process-cpu-load (.getProcessCpuLoad (java.lang.management.ManagementFactory/getOperatingSystemMXBean))
@@ -73,7 +109,7 @@
    :allocated-memory (.totalMemory (Runtime/getRuntime))
    :free-memory (.freeMemory (Runtime/getRuntime))})
 
-(defn init-cluster! [{:keys [cluster-state-broadcast cluster-state-subs cluster-state-fn heartbeat-exchange-name cluster-cmd-subs cluster-cmd-fn cmd-exchange-name] :as server-config}]
+(defn init-cluster! [{:keys [cluster-state-broadcast cluster-state-subs cluster-state-fn heartbeat-exchange-name cluster-cmd-subs cluster-cmd-fn cmd-exchange-name cluster-eviction-interval cluster-eviction-age] :as server-config}]
   (alter-var-root #'node-id (constantly (:node-id server-config)))
   (when (:enable-cluster server-config)
     (alter-var-root #'cluster-enabled (constantly true))
@@ -84,16 +120,19 @@
                                                                         {:systems   (merge-with merge (into {} (system/live-systems)) (:systems-catalogue server-config))
                                                                          :jobs      (api/get-jobs-states)
                                                                          :timestamp (java.util.Date.)}))}))))
-    (alter-var-root #'cluster-state-subscription
+    (alter-var-root #'cluster-job-cleanup (constantly (map->JobsCleanupComponent {:eviction-interval (or cluster-eviction-interval (* 30 1000)) :eviction-age (or cluster-eviction-age (* 5 60 1000))})))
+    (when cluster-state-subs
+      (alter-var-root #'cluster-state-subscription
                     (constantly
                       (cluster-state-subs (merge server-config
                                                  {:exchange-name heartbeat-exchange-name
-                                                  :processing-fn cluster-state-fn}))))
-    (alter-var-root #'cluster-cmd-subscription
+                                                  :processing-fn cluster-state-fn})))))
+    (when cluster-cmd-subscription
+      (alter-var-root #'cluster-cmd-subscription
                     (constantly
                       (cluster-cmd-subs (merge server-config
                                                  {:exchange-name cmd-exchange-name
-                                                  :processing-fn cluster-cmd-fn}))))))
+                                                  :processing-fn cluster-cmd-fn})))))))
 
 (defn start-broadcast! []
   (if (cluster-enabled?)
@@ -109,6 +148,7 @@
   (when-not (cluster-enabled?) (throw (IllegalStateException. "Cannot monitor cluster nodes' heartbeat since clustering is not enabled!")))
   (locking lock
     (when-not *cluster-aware*
+      (alter-var-root #'cluster-job-cleanup component/start)
       (alter-var-root #'cluster-state-subscription component/start)
       (alter-var-root #'*cluster-aware* not))))
 
@@ -116,6 +156,7 @@
   (when-not (cluster-enabled?) (throw (IllegalStateException. "Cannot monitor cluster nodes' heartbeat since clustering is not enabled!")))
   (locking lock
     (when *cluster-aware*
+      (alter-var-root #'cluster-job-cleanup component/stop)
       (alter-var-root #'cluster-state-subscription component/stop)
       (alter-var-root #'*cluster-aware* not))))
 
@@ -148,32 +189,3 @@
        (merge {:systems this-nodes-sysmap :last-hearbeat-age 0 :source true :state :live} (get-sys-load))}
       @cluster-state-sys)
     (throw (IllegalStateException. "Cluster is not enabled and/or this node is not aware of other nodes."))))
-
-(defn evict-old-jobs [jobs-map eviction-age cur-t]
-  (->> jobs-map
-       (filter (fn [[k v]] (or (not (:end v))
-                          (< cur-t
-                             (+ (.getTime (:end v)) eviction-age)))))
-       (into {})))
-
-(defrecord JobsCleanupComponent [thread-handle eviction-interval eviction-age]
-  component/Lifecycle
-  (start [this]
-    (log/info "Starting JobsCleanupComponent...")
-    (if thread-handle
-      this
-      (let [th (Thread. (fn[]
-                          (log/info "Starting JobsCleanupComponent thread [" (.getName (Thread/currentThread)) "].")
-                          (loop [t (java.util.Date.)]
-                            (swap! cluster-state-jobs util/update-in-* [*] evict-old-jobs eviction-age (.getTime t))
-                            (Thread/sleep eviction-interval)
-                            (recur (java.util.Date.))))
-                          (str "JobsCleanupComponent thread " (rand-int 9)))]
-        (.start th)
-        (assoc this
-          :thread-handle th))))
-  (stop [this]
-    (log/info "Stopping JobsCleanupComponent thread [" (.getName thread-handle) "]...")
-    (if thread-handle (.interrupt thread-handle))
-    (assoc this
-      :thread-handle nil)))
