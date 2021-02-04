@@ -36,7 +36,7 @@
                  [org.clojure/tools.reader "1.3.2"]
                  [clj-time "0.14.0"]
                  [org.clojure/java.jdbc "0.7.1"]
-                 [io.titanoboa/c3p0 "0.9.6-pre1"]
+                 [org.mule.mchange/c3p0 "0.9.5.2-MULE-002"]
                  [honeysql "0.9.1"]
                  ;;uncomment following for RDBMS archival use - or just add it into the external dependencies file ;)
                  #_[org.postgresql/postgresql "9.4.1208"]
@@ -55,7 +55,7 @@
              :java8jdk {:dependencies [[org.tcrawley/dynapath "0.2.4"]
                                        [com.cemerick/pomegranate "1.0.0" :exclusions [org.tcrawley/dynapath]]]}}
 
-  :repositories [["atlassian" 	"https://maven.atlassian.com/3rdparty/"]]
+  :repositories [["atlassian" 	"https://maven.atlassian.com/3rdparty/"] ["mule" "https://repository.mulesoft.org/releases/"]]
 
   :test-selectors {:default (fn [m] (not (or (:integration m) (:rmq m))))
                    :integration :integration
