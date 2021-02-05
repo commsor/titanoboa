@@ -48,7 +48,7 @@ Titanoboa is **designed for both java & clojure developers** and we are striving
 
 To understand some of the concepts behind Titanoboa and how it can be used, feel free to watch this re:Clojure conference talk:
 
-[![recent talk at re:Clojure conference](https://img.youtube.com/vi/IRrh4VUHhNY/0.jpg)](https://www.youtube.com/watch?v=IRrh4VUHhNY?t=1254)
+[![recent talk at re:Clojure conference](https://img.youtube.com/vi/IRrh4VUHhNY/0.jpg)](https://www.youtube.com/watch?v=IRrh4VUHhNY)
 
 
 ## Predefined Steps
