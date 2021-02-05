@@ -2,15 +2,16 @@
 [![Join the chat at https://github.com/mikub/titanoboa/discussions](https://img.shields.io/badge/chat-github%20discussions-green.svg?logo=google-chat)](https://github.com/mikub/titanoboa/discussions)
 [![Demo](https://img.shields.io/badge/view-demo-green.svg)](https://www.titanoboa.io/demo.html)
 [![Free Hosted Instances](https://img.shields.io/badge/start-a%20free%20hosted%20instance%20with%20one%20click-orange.svg?logo=serverless)](https://cloud.titanoboa.io)
-[![Download](https://img.shields.io/badge/download-0.9.1-blue.svg)](https://github.com/mikub/titanoboa/releases/download/0.9.1/titanoboa-0.9.1_gui.zip)
+[![Download](https://img.shields.io/badge/download-1.0.0--alfa.1-blue.svg)](https://github.com/mikub/titanoboa/releases/download/1.0.0-alfa.1/titanoboa-1.0.0-alfa.1_gui.zip)
 [![Docker Pulls](https://img.shields.io/docker/pulls/titanoboa/titanoboa.svg)](https://hub.docker.com/r/titanoboa/titanoboa/)
 
 ## Synopsis
 Titanoboa makes complex workflows easy. 
 
 It is a fully distributed, highly scalable and fault tolerant workflow orchestration platform.<br/>
-It runs on the JVM and supports Java and Clojure. (Python is also coming!) <br/>
+It runs on the JVM and supports Java & Clojure. (Python is also coming!) <br/>
 You can run it anywhere: on-premises or in a cloud; on bare metal, VMs, Docker or K8s. <br/>
+Titnaoboa supports clustering and you can scale to hundreds of nodes very easily.
 
 ![alt Logo](https://www.titanoboa.io/tb-logo-dark-nosub.svg)
 
@@ -44,6 +45,11 @@ Titanoboa's in-browser [**GUI**](https://github.com/mikub/titanoboa/wiki/Getting
 
 <img width="42" height="42" src="https://github.com/mikub/titanoboa/blob/master/doc/clojure.svg"><img width="54" height="54" src="https://github.com/mikub/titanoboa/blob/master/doc/java.svg"><br/>
 Titanoboa is **designed for both java & clojure developers** and we are striving to make it **[usable even for java developers with no prior clojure knowledge](#-developing-custom-workflow-steps-in-java)**.
+
+To understand some of the concepts behind Titanoboa and how it can be used, feel free to watch this re:Clojure conference talk:
+
+[![recent talk at re:Clojure conference](https://img.youtube.com/vi/IRrh4VUHhNY/0.jpg)](https://www.youtube.com/watch?v=IRrh4VUHhNY?t=1254)
+
 
 ## Predefined Steps
 Though it is easy to rapidly develop new workflow steps directly from GUI (as shown in our [demo](https://www.titanoboa.io/demo.html)), there is a number of ready-made steps and tasklets in [this repository](https://github.com/mikub/titanoboa-tasklets).
