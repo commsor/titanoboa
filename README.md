@@ -74,7 +74,7 @@ Java 8 or higher.
 Docker image is available in [titanoboa/titanoboa](https://hub.docker.com/r/titanoboa/titanoboa)
 You can run it as follows:
 
-    docker run -d -p 3000:3000 --name titanoboa titanoboa/titanoboa
+    docker run -d -p 3000:3000 --name titanoboa titanoboa/titanoboa:0.9.0
 
 ## Installation
 **By the way, you don't need to install anything as you can just start a free hosted instance in your browser with one click! Just head to https://cloud.titanoboa.io**
