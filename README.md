@@ -346,6 +346,3 @@ When you are done testing you may want to stop the system:
 Copyright © Miroslav Kubicek
 
 Titanoboa is dual-licensed under either AGPL license or a Commercial license.
-
-**Clarification regarding AGPL licensing:**
-A program using Titanoboa via its standard REST API is not considered a derivative piece of work and thus does not have to have its source code released under AGPL linse.
