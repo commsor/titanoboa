@@ -8,7 +8,7 @@
 ## Synopsis
 Titanoboa makes complex workflows easy. 
 
-It is a fully distributed, highly scalable and fault tolerant workflow orchestration platform.<br/>
+It is a fully distributed, highly scalable low-code workflow orchestration platform.<br/>
 It runs on the JVM and supports Java, Kotlin & Clojure. (Python is also coming!) <br/>
 You can run it anywhere: on-premises or in a cloud; on bare metal, VMs, Docker or K8s. <br/>
 Titanoboa supports [clustering](https://github.com/mikub/titanoboa/wiki/Clustering) and you can scale to hundreds of nodes easily.
