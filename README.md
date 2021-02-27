@@ -17,11 +17,11 @@ Titanoboa supports [clustering](https://github.com/mikub/titanoboa/wiki/Clusteri
 
 Due to its generic, distributed and easily extensible design, you can use titanoboa for wide variety of purposes. <br/>
 You can use it:
+* for **[Big Data](https://www.titanoboa.io/big-data.html)** processing & data pipelines automation
 * for **orchestrating Core Microservices** - as a replacement of Composite Microservices
 * as a full-featured [**iPaaS** / **Integration Platform**](https://titanoboa.io/using-titanoboa-for-cloud-integration.html)
-* for **[Big Data](https://www.titanoboa.io/big-data.html)** processing
-* for **[IT Automation](https://www.titanoboa.io/using-titanoboa-for-it-automation.html)**
 * for Data Transformations / **ETL**
+* for **[IT Automation](https://www.titanoboa.io/using-titanoboa-for-it-automation.html)**
 * as a **Service Bus** (ESB)
 * for **Batch Processing**
 
