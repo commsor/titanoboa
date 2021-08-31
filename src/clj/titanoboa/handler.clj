@@ -102,10 +102,19 @@
       (PATCH "/jobs/:jobid" [jobid command]
         (processor/command->job (util/s->key (http-util/url-decode system)) jobid command)
         {:status 200 :body {:message "The command signal sent to the jobs command queue"}})
-      (POST "/jobs/:jobdef-name" [jobdef-name & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
-                                      {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system)) {:jobdef-name jobdef-name :properties properties} false)}))
-      (POST "/jobs/:jobdef-name/:revision" [jobdef-name revision & properties] (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties "properties)
-                                                                {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system)) {:jobdef-name jobdef-name :revision revision :properties properties} false)})))
+      (POST "/jobs/:jobdef-name" [jobdef-name syncjob returnpropsonly & properties]
+        (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties " properties)
+            {:status 201
+             :body (processor/run-job! (util/s->key (http-util/url-decode system))
+                                       {:jobdef-name jobdef-name :properties properties}
+                                       (boolean syncjob)
+                                       (boolean returnpropsonly))}))
+      (POST "/jobs/:jobdef-name/:revision" [jobdef-name revision syncjob returnpropsonly & properties]
+        (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties " properties)
+            {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system))
+                                                   {:jobdef-name jobdef-name :revision revision :properties properties}
+                                                   (boolean syncjob)
+                                                   (boolean returnpropsonly))})))
     (context "/cluster" []
       (GET "/" [] (if cluster/cluster-enabled {:status 200 :body {}} {:status 404 :body {:message "Clustering is disabled"}}))
       (GET "/id" [] (if cluster/cluster-enabled {:status 200 :body cluster/node-id} {:status 404 :body {:message "Clustering is disabled"}}))

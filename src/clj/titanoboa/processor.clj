@@ -142,7 +142,7 @@
 (defn run-job!
   "Dispatches a request to start a job in given system. Does not use action thread pool.
   Returns the job id or the finished job if the sync flag is set to true."
-  [system-key {:keys [jobdef jobdef-name revision properties files] :as conf} sync]
+  ([system-key {:keys [jobdef jobdef-name revision properties files] :as conf} sync return-props-only]
   (assert (system/is-running? system-key) "Cannot start a job in a system that is not running!")
   (let [{:keys [new-jobs-chan job-state eviction-list dont-log-properties trim-logged-properties properties-trim-size
                 job-folder-root job-defs mq-session-pool jobs-cmd-exchange] :as system} (get-in @system/systems-state [system-key :system])
@@ -155,8 +155,12 @@
                               :jobs-cmd-exchange jobs-cmd-exchange
                               :mq-pool (:pool mq-session-pool)})] ;;FIXME fix this need to go backdoor to grab systems config - it should flow down from the top!!! This is likely caused by my use of actions and action pool - functions from processor make calls to fns in the same namespace via actions, this seems weird!!
     (if sync
-      (run-sync-job! job-conf)
+      (if return-props-only (let [job (run-sync-job! job-conf)]
+                              (merge (:properties job) (select-keys job [:jobid :state])))
+                            (run-sync-job! job-conf))
       {:jobid (instantiate-job! job-conf)})))
+  ([system-key conf sync]
+   (run-job! system-key conf sync false)))
 
 
 (defn add-thread-callbacks [parallel-threads thread-registry]
