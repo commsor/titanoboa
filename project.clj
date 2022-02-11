@@ -42,7 +42,7 @@
                  ;;uncomment following for RDBMS archival use - or just add it into the external dependencies file ;)
                  #_[org.postgresql/postgresql "9.4.1208"]
                  ;;uncomment following for Rabbit MQ use as a job channel - or just add it into the external dependencies file ;)
-                 [com.novemberain/langohr "3.5.0" :exclusions [cheshire]]
+                 #_[com.novemberain/langohr "3.5.0" :exclusions [cheshire]]
                  [io.titanoboa/titanoboa-java "0.1.0"]
                  [io.titanoboa/compliment "0.3.9"]]
 
