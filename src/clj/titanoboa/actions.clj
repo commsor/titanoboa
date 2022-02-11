@@ -1,4 +1,4 @@
-; Copyright (c) Miroslav Kubicek. All rights reserved.
+; Copyright (c) Commsor Inc. All rights reserved.
 ; The use and distribution terms for this software are covered by the
 ; GNU Affero General Public License v3.0 (https://www.gnu.org/licenses/#AGPL)
 ; which can be found in the LICENSE at the root of this distribution.

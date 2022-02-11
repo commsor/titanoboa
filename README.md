@@ -343,6 +343,6 @@ When you are done testing you may want to stop the system:
  ```
 
 ## License
-Copyright © Miroslav Kubicek
+Copyright © Commsor Inc.
 
 Titanoboa is dual-licensed under either AGPL license or a Commercial license.
