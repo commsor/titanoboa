@@ -345,4 +345,4 @@ When you are done testing you may want to stop the system:
 ## License
 Copyright © Commsor Inc.
 
-Titanoboa is dual-licensed under either AGPL license or a Commercial license.
+Titanoboa is licensed under AGPL license.
