@@ -85,8 +85,10 @@
 (System/setProperty "clojure.core.async.pool-size" "24")
 
 (defn get-default-config [& [host]]
-  {:host (or host (System/getProperty "boa.server.host") (.getHostAddress (java.net.InetAddress/getLocalHost)))
-   :jetty {:port (if (System/getProperty "boa.server.port") (Long/parseLong (System/getProperty "boa.server.port")) 3000)
+  {:host (or host (System/getenv "BOA_SERVER_HOST") (System/getProperty "boa.server.host") (.getHostAddress (java.net.InetAddress/getLocalHost)))
+   :jetty {:port (if-let [port (or (System/getenv "BOA_SERVER_PORT") (System/getProperty "boa.server.port"))]
+                   (Long/parseLong port)
+                   3000)
            :join? false}
    :steps-repo-path "steps-repo"
    :jobs-repo-path "repo"})
