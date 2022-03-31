@@ -62,7 +62,7 @@
            init-s3mvn-support))
 
 (defn get-deps-path-property []
-  (System/getProperty dependencies-path-property))
+  (or (System/getenv "BOA_DEPS_PATH") (System/getProperty dependencies-path-property)))
 
 (def lock (Object.))
 
