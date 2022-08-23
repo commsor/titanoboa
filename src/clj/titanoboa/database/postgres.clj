@@ -16,20 +16,29 @@
 
 
 (defmethod db/list-jobs "org.postgresql.Driver"
-  [ds limit offset order]
+  [ds limit offset order {:keys [tenant-id jobdef] :as filters}]
   (let [query (cond->
-                {:select [:jobid :jobdef :revision :state :start :ended :stepid :steptype :stepstate :isparent :parentjobid :threadstack (sql/raw "count(*) OVER() AS totalcount")],
+                {:select [:jobid :jobdef :revision :tenantid :state :start :ended :stepid :steptype :stepstate :isparent :parentjobid :threadstack (sql/raw "count(*) OVER() AS totalcount")],
                  :from [:jobs]}
                 limit (h/limit limit)
                 offset (h/offset offset)
-                order (h/order-by order)
-                true sql/format)]
+                order (h/order-by order))
+        query (if (or (not (clojure.string/blank? tenant-id))  (not (clojure.string/blank? jobdef)))
+                (let [filters-query (->>
+                                     [(when tenant-id [:= :tenantid tenant-id])
+                                      (when (string? jobdef) [:= :jobdef jobdef])
+                                      (when (and (vector? jobdef) (not-empty jobdef)) [:in :jobdef jobdef])]
+                                     (keep identity)
+                                     vec)]
+                  (apply h/where query filters-query))
+                query)]
     (reduce (fn [val item]
               (-> (if (:totalcount val) val (assoc val :totalcount (:totalcount item)))
                   (update-in [:values] conj {:jobid        (str (:jobid item))
                                              :parent-jobid (when (:parentjobid item) (str (:parentjobid item)))
                                              :jobdef       {:name     (:jobdef item)
                                                             :revision (:revision item)}
+                                             :tenant-id    (:tenantid item)
                                              :isparent?    (:isparent item)
                                              :state        (keyword (:state item))
                                              :start        (:start item)
@@ -39,7 +48,7 @@
                                                             :type (keyword (:steptype item))}
                                              :thread-stack (edn/read-string (:threadstack item))})))
             {:offset offset :limit limit :order order :values []}
-            (jdbc/query ds query))))
+            (jdbc/query ds (sql/format query)))))
 
 
 #_(reduce (fn [val item]

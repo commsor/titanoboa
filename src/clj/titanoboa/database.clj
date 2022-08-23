@@ -62,6 +62,7 @@
   (jdbc/insert! ds "jobs" {:jobid     (java.util.UUID/fromString (:jobid job))
                            :jobdef    (get-in job [:jobdef :name])
                            :revision  (get-in job [:jobdef :revision])
+                           :tenantid  (:tenant-id job)
                            :state     (name (:state job))
                            :start     (t/to-sql-time (:start job))
                            :ended     (t/to-sql-time  (:end job))
@@ -76,7 +77,7 @@
 (defmulti list-jobs
           "Retrieve list of archived jobs. The jobs are not to be containing all data - only a short map with :jobid :jobdef :revision :state :start :ended :stepid :steptype :stepstate!
           Returns a map in a format of  {:offset offset :limit limit :totalcount total-number-of-rows-available :values [{job 1} {job 2} {job n}]}"
-          (fn [ds limit offset order] (.getDriverClass (:datasource ds))))
+          (fn [ds limit offset order filters] (.getDriverClass (:datasource ds))))
 
 
 (defn get-job [ds jobid]

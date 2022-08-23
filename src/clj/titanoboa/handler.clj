@@ -102,17 +102,17 @@
       (PATCH "/jobs/:jobid" [jobid command]
         (processor/command->job (util/s->key (http-util/url-decode system)) jobid command)
         {:status 200 :body {:message "The command signal sent to the jobs command queue"}})
-      (POST "/jobs/:jobdef-name" [jobdef-name syncjob returnpropsonly & properties]
+      (POST "/jobs/:jobdef-name" [jobdef-name syncjob returnpropsonly tenant-id & properties]
         (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties " properties)
             {:status 201
              :body (processor/run-job! (util/s->key (http-util/url-decode system))
-                                       {:jobdef-name jobdef-name :properties properties}
+                                       {:jobdef-name jobdef-name :properties properties :tenant-id tenant-id}
                                        (boolean syncjob)
                                        (boolean returnpropsonly))}))
-      (POST "/jobs/:jobdef-name/:revision" [jobdef-name revision syncjob returnpropsonly & properties]
+      (POST "/jobs/:jobdef-name/:revision" [jobdef-name revision syncjob returnpropsonly tenant-id & properties]
         (do (log/debug "Recieved request to start a job " jobdef-name " on system [" (http-util/url-decode system) "] with properties " properties)
             {:status 201 :body (processor/run-job! (util/s->key (http-util/url-decode system))
-                                                   {:jobdef-name jobdef-name :revision revision :properties properties}
+                                                   {:jobdef-name jobdef-name :revision revision :properties properties :tenant-id tenant-id}
                                                    (boolean syncjob)
                                                    (boolean returnpropsonly))})))
     (context "/cluster" []
@@ -138,10 +138,13 @@
                      {node-id
                       (merge (cluster/get-sys-load) {:systems (merge-with merge (into {} (system/live-systems)) systems-catalogue) :last-hearbeat-age 0 :source true :state :live})}})))
     (context "/archive" []
-      (GET "/jobs" [limit :<< as-int offset :<< as-int order-by order] (do (log/info "Received request to list jobs, limit is ["limit"] order is " order)
-                                                                  (if archive-ds-ks
-                                                                    {:body (db/list-jobs (get-in @system/systems-state archive-ds-ks) (or limit 50) (or offset 0) (when (and order-by order) [(keyword order-by) (keyword order)]))}
-                                                                    {:status 404 :body {}})))
+      (GET "/jobs" [limit :<< as-int offset :<< as-int order-by order tenant-id jobdef]
+        (do (log/debug "Received request to list jobs, limit is ["limit"] order is " order)
+            (if archive-ds-ks
+              {:body (db/list-jobs (get-in @system/systems-state archive-ds-ks) (or limit 50) (or offset 0)
+                                   (when (and order-by order) [(keyword order-by) (keyword order)])
+                                   {:jobdef jobdef :tenant-id tenant-id})}
+              {:status 404 :body {}})))
       (GET "/jobs/:jobid" [jobid] (if archive-ds-ks  {:body (db/get-jobs (get-in @system/systems-state archive-ds-ks) jobid)}
                                                      {:status 404 :body {}}))
       (PATCH "/jobs/:jobid" [jobid system command]
