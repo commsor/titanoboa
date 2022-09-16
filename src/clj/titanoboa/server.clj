@@ -34,11 +34,6 @@
 
 (def ^Server server nil)
 
-(defn find-ns-starting-with [s]
-  (filter #(-> %
-               str
-               (.startsWith s)) (ns.find/find-namespaces (cp/classpath))))
-
 (defn extract-zip-resource [resource unzip-to]
   (with-open [stream (-> (Thread/currentThread)
                          (.getContextClassLoader)
@@ -64,24 +59,7 @@
     (when (io/resource "steps-repo.zip")
       (extract-zip-resource "steps-repo.zip" path))))
 
-(defn require-ns [ns]
-  (try
-    (log/info "Trying to require namespace " ns )
-    (require ns)
-    (log/info "Successfully required namespace" ns )
-    (catch Exception e
-      (log/warn e "Failed to require namespace" ns))))
-
-(defn require-extensions []
-  (log/info "Loading database extensions...")
-  (mapv require-ns (find-ns-starting-with "titanoboa.database."))
-  (log/info "Loading system definitions...")
-  (mapv require-ns (find-ns-starting-with "titanoboa.system."))
-  (log/info "Loading tasklet definitions...")
-  (mapv require-ns (find-ns-starting-with "titanoboa.tasklet.")))
-
-;;FIXME validate size of the async thread pool - revise all usages of thread macro (some may use standalone Thread)!
-;;TODO also size needed will depend on whether or not AWS/SQS is used, as the polling and acknowledgement and alt operations all use threading macro
+;;TODO validate size of the async thread pool - revise all usages of thread macro (some may use standalone Thread)!
 (System/setProperty "clojure.core.async.pool-size" "24")
 
 (defn get-default-config [& [host]]
@@ -166,26 +144,34 @@
                                              (:jetty server-config)))))))
 
 (defn run-db-setup! [db-conf-path script-path]
-  (load-dependencies!)
-  (system/start-system! :db
-                        {:db {:system-def #'titanoboa.system.jdbc/jdbc-pool}}
-                        (edn/read-string (slurp db-conf-path)))
-  (log/info "Running db setup script...")
-  (db/execute! (get-in @titanoboa.system/systems-state [:db :system :pool])  (slurp script-path))
-  (system/stop-all-systems!))
+  (binding [*use-context-classloader* true]
+    (let [cl (clojure.lang.DynamicClassLoader.)]
+      (.bindRoot clojure.lang.Compiler/LOADER cl)
+      (.setContextClassLoader (Thread/currentThread) cl)
+      (load-dependencies!)
+      (system/start-system! :db
+                            {:db {:system-def #'titanoboa.system.jdbc/jdbc-pool}}
+                            (read-string (slurp db-conf-path)))
+      (log/info "Running db setup script...")
+      (db/execute! (get-in @titanoboa.system/systems-state [:db :system :pool])  (slurp script-path))
+      (system/stop-all-systems!))))
 
 (defn add-user! [db-conf-path name password email level]
-  (load-dependencies!)
-  (system/start-system! :db
-                        {:db {:system-def #'system.jdbc/jdbc-pool}}
-                        (edn/read-string (slurp db-conf-path)))
-  (log/info "Adding new user into db...")
-  (auth/create-user (get-in @system/systems-state [:db :system :pool])
-                    {:name name
-                     :password password
-                     :email email
-                     :level level})
-  (system/stop-all-systems!))
+  (binding [*use-context-classloader* true]
+    (let [cl (clojure.lang.DynamicClassLoader.)]
+      (.bindRoot clojure.lang.Compiler/LOADER cl)
+      (.setContextClassLoader (Thread/currentThread) cl)
+      (load-dependencies!)
+      (system/start-system! :db
+                            {:db {:system-def #'titanoboa.system.jdbc/jdbc-pool}}
+                            (read-string (slurp db-conf-path)))
+      (log/info "Adding new user into db...")
+      (auth/create-user (get-in @system/systems-state [:db :system :pool])
+                        {:name name
+                         :password password
+                         :email email
+                         :level level})
+      (system/stop-all-systems!))))
 
 (defn -main [& args]
   (log/info "Running titanoboa with parameters: " args)
